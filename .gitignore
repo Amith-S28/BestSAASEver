@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+
+# Data (large files, medical docs — DO NOT commit)
+data/raw/
+data/processed/
+data/lancedb/
+data/logs/
+
+# Model cache
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
