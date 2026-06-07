@@ -121,6 +121,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# Auto-correct LM Studio base_url if missing /v1 suffix
+if not settings.lmstudio_base_url.rstrip("/").endswith("/v1"):
+    settings.lmstudio_base_url = settings.lmstudio_base_url.rstrip("/") + "/v1"
+
 # Set HF token for all downloads if provided
 if settings.hf_token:
     os.environ["HF_TOKEN"] = settings.hf_token

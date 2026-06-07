@@ -78,14 +78,17 @@ def parse_with_chandra(file_path: Path) -> ParsedDocument:
 
     Handles PDFs AND images (JPG, PNG, etc.). Tables, handwriting, math, 90+ languages.
     """
+    from PIL import Image as PILImage
     from chandra.model.schema import BatchInputItem
     from chandra.output import parse_markdown
+
+    img = PILImage.open(str(file_path)).convert("RGB")
 
     # Try MLX backend first (Apple Silicon optimized), then HuggingFace
     try:
         from chandra.model.mlx import generate_mlx
 
-        batch = [BatchInputItem(image=str(file_path), prompt_type="ocr_layout")]
+        batch = [BatchInputItem(image=img, prompt_type="ocr_layout")]
         result = generate_mlx(batch)[0]
         markdown_text = parse_markdown(result.raw)
         engine_used = "chandra-mlx"
@@ -104,7 +107,7 @@ def parse_with_chandra(file_path: Path) -> ParsedDocument:
         model.processor = AutoProcessor.from_pretrained("datalab-to/chandra-ocr-2")
         model.processor.tokenizer.padding_side = "left"
 
-        batch = [BatchInputItem(image=str(file_path), prompt_type="ocr_layout")]
+        batch = [BatchInputItem(image=img, prompt_type="ocr_layout")]
         result = generate_hf(batch, model)[0]
         markdown_text = parse_markdown(result.raw)
         engine_used = "chandra-hf"
@@ -145,8 +148,8 @@ def parse_with_chandra_cli(file_path: Path, output_dir: Path | None = None) -> P
     if result.returncode != 0:
         raise RuntimeError(f"Chandra CLI failed: {result.stderr}")
 
-    # Find the output markdown file
-    md_files = list(out_dir.glob("*.md"))
+    # Find the output markdown file (CLI creates subdirectories per input)
+    md_files = list(out_dir.rglob("*.md"))
     if not md_files:
         raise RuntimeError(f"No markdown output from Chandra for {file_path}")
 

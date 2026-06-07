@@ -40,6 +40,9 @@ document.addEventListener('alpine:init', () => {
     searchAllFolders: false,
     hereditaryDisclaimer: '',
 
+    // Mobile sidebar
+    sidebarOpen: false,
+
     // Computed
     get activeFolderName() {
       const f = this.folders.find(f => f.folder_id === this.activeFolderId);
@@ -57,6 +60,16 @@ document.addEventListener('alpine:init', () => {
       this.connectWs();
       this.fetchStatus();
       this.fetchFolders();
+
+      // Auto-focus input when loading finishes
+      this.$watch('loading', value => {
+        if (!value) {
+          this.$nextTick(() => {
+            const input = document.querySelector('.chat-input-form input');
+            if (input && !input.disabled) input.focus();
+          });
+        }
+      });
     },
 
     // ── Helpers ───────────────────────────────────────────────────────
@@ -75,8 +88,35 @@ document.addEventListener('alpine:init', () => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
       this.ws = new WebSocket(`${proto}://${location.host}/ws/chat`);
       this.ws.onmessage = (e) => this.handleWsMessage(JSON.parse(e.data));
-      this.ws.onclose = () => setTimeout(() => this.connectWs(), 3000);
-      this.ws.onerror = () => {};
+      this.ws.onclose = () => {
+        if (this.loading) {
+          this.loading = false;
+          this.currentStreamText = '';
+          this.currentSources = [];
+          const last = this.messages[this.messages.length - 1];
+          if (last && last.role === 'assistant' && !last.done) {
+            last.content = '⚠️ Connection lost. Please try again.';
+            last.done = true;
+          } else if (!last || last.role === 'user') {
+            this.messages.push({ role: 'assistant', content: '⚠️ Connection lost. Please try again.', done: true, sources: [] });
+          }
+        }
+        setTimeout(() => this.connectWs(), 3000);
+      };
+      this.ws.onerror = () => {
+        if (this.loading) {
+          this.loading = false;
+          this.currentStreamText = '';
+          this.currentSources = [];
+          const last = this.messages[this.messages.length - 1];
+          if (last && last.role === 'assistant' && !last.done) {
+            last.content = '⚠️ Connection error. Please try again.';
+            last.done = true;
+          } else if (!last || last.role === 'user') {
+            this.messages.push({ role: 'assistant', content: '⚠️ Connection error. Please try again.', done: true, sources: [] });
+          }
+        }
+      };
     },
 
     handleWsMessage(msg) {
@@ -85,6 +125,11 @@ document.addEventListener('alpine:init', () => {
       } else if (msg.type === 'conv_id') {
         // Server-assigned conversation ID (created on first query)
         this.activeConvId = msg.data.conv_id;
+        // Ensure folder is expanded so the new conversation is visible
+        if (this.activeFolderId) {
+          this.expandedFolderId = this.activeFolderId;
+        }
+        this.fetchConversationsForFolder(this.activeFolderId);
       } else if (msg.type === 'disclaimer') {
         // Medical disclaimer from server (hereditary queries)
         this.hereditaryDisclaimer = msg.data.message || '';
@@ -108,7 +153,13 @@ document.addEventListener('alpine:init', () => {
         this.fetchDocumentsForFolder(this.activeFolderId);
         this.fetchConversationsForFolder(this.activeFolderId);
       } else if (msg.type === 'error') {
-        this.messages.push({ role: 'assistant', content: `⚠️ ${msg.data.message}`, done: true, sources: [] });
+        const last = this.messages[this.messages.length - 1];
+        if (last && last.role === 'assistant' && !last.done) {
+          last.content = `⚠️ ${msg.data.message}`;
+          last.done = true;
+        } else {
+          this.messages.push({ role: 'assistant', content: `⚠️ ${msg.data.message}`, done: true, sources: [] });
+        }
         this.loading = false;
         this.currentStreamText = '';
         this.currentSources = [];
@@ -140,17 +191,18 @@ document.addEventListener('alpine:init', () => {
       const q = this.input.trim();
       if (!q || this.loading) return;
 
+      // If no active conversation, reset conv state but PRESERVE messages
+      if (this.activeFolderId && !this.activeConvId) {
+        this.activeConvId = null;
+        this.searchAllFolders = false;
+      }
+
       this.messages.push({ role: 'user', content: q });
       this.messages.push({ role: 'assistant', content: '', sources: [], done: false });
       this.loading = true;
       this.input = '';
       this.currentStreamText = '';
       this.currentSources = [];
-
-      // Auto-create conversation if none active
-      if (this.activeFolderId && !this.activeConvId) {
-        this.startNewConversation(this.activeFolderId);
-      }
 
       const payload = {
         type: 'query',
@@ -275,17 +327,54 @@ document.addEventListener('alpine:init', () => {
 
     async startNewConversation(folderId) {
       if (!folderId) return;
+
+      // Reset chat state
       this.activeFolderId = folderId;
       this.activeConvId = null;
       this.messages = [];
       this.searchAllFolders = false;
-      // Conversation will be created server-side on first query
-      // Just reset the state here
+      this.loading = false;
+      this.currentStreamText = '';
+      this.currentSources = [];
+      this.input = '';
+      this.expandedFolderId = folderId;
+      this.sidebarOpen = false;
+
+      // Create conversation on server immediately (like ChatGPT/Claude)
+      try {
+        const r = await fetch(`/api/folders/${folderId}/conversations`, { method: 'POST' });
+        const data = await r.json();
+        if (r.ok) {
+          this.activeConvId = data.conv_id;
+          // Inject into local list so it appears right away
+          const list = this.conversationsByFolder[folderId] || [];
+          list.unshift({
+            conv_id: data.conv_id,
+            folder_id: data.folder_id,
+            title: data.title,
+            message_count: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          this.conversationsByFolder[folderId] = list;
+          this.showToast('New conversation started');
+        } else {
+          this.showToast('Failed to start conversation');
+        }
+      } catch {
+        this.showToast('Failed to start conversation');
+      }
+
+      this.$nextTick(() => {
+        const el = document.querySelector('.chat-input-form input');
+        if (el) el.focus();
+      });
     },
 
     async selectConversation(folderId, convId) {
       this.activeFolderId = folderId;
       this.activeConvId = convId;
+      this.expandedFolderId = folderId;
       this.searchAllFolders = false;
       try {
         const r = await fetch(`/api/conversations/${folderId}/${convId}`);
@@ -300,6 +389,8 @@ document.addEventListener('alpine:init', () => {
         this.messages = [];
       }
       this.scrollChat();
+      // Close mobile sidebar after selection
+      this.sidebarOpen = false;
     },
 
     async deleteConversation(folderId, convId) {
@@ -417,6 +508,21 @@ document.addEventListener('alpine:init', () => {
         const el = document.querySelector('.chat-messages');
         if (el) el.scrollTop = el.scrollHeight;
       });
+    },
+
+    // ── Toast ──────────────────────────────────────────────────────────
+
+    toastMessage: '',
+    toastVisible: false,
+    toastTimer: null,
+
+    showToast(message) {
+      this.toastMessage = message;
+      this.toastVisible = true;
+      if (this.toastTimer) clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => {
+        this.toastVisible = false;
+      }, 2000);
     },
   }));
 });

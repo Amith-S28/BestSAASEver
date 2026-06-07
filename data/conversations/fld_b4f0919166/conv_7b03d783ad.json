@@ -1,0 +1,25 @@
+{
+  "conv_id": "conv_7b03d783ad",
+  "folder_id": "fld_b4f0919166",
+  "title": "do i have a chance of getting cancer give detailed",
+  "messages": [
+    {
+      "role": "user",
+      "content": "do i have a chance of getting cancer give detailed",
+      "sources": []
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "sources": [
+        "synthetic_me_03.pdf",
+        "synthetic_dad_03.pdf",
+        "synthetic_dad_01.pdf",
+        "synthetic_mom_01.pdf",
+        "synthetic_me_01.pdf"
+      ]
+    }
+  ],
+  "created_at": "2026-06-07T10:38:29.270454+00:00",
+  "updated_at": "2026-06-07T10:39:10.219916+00:00"
+}

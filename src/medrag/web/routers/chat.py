@@ -78,13 +78,17 @@ async def chat(websocket: WebSocket) -> None:
                 continue
 
             # Ensure conversation exists before saving
-            if folder_id and conv_id:
-                existing = pipeline.load_conversation(folder_id, conv_id)
-                if not existing:
-                    # Create conversation on first query
+            if folder_id:
+                if not conv_id:
+                    # Create conversation on first query when no conv_id provided
                     conv = pipeline.create_conversation(folder_id)
-                    # Use the server-generated conv_id going forward
                     conv_id = conv.conv_id
+                else:
+                    existing = pipeline.load_conversation(folder_id, conv_id)
+                    if not existing:
+                        # Create conversation on first query
+                        conv = pipeline.create_conversation(folder_id)
+                        conv_id = conv.conv_id
                 pipeline.add_message(folder_id, conv_id, "user", question)
 
             # Run retrieval in thread pool (blocking)

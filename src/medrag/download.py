@@ -68,18 +68,18 @@ CATEGORY_FOLDERS: dict[str, dict[str, str]] = {
     "schizophrenia": {"name": "Sister", "relationship": "sibling", "key": "sister"},
     "alzheimer": {"name": "Sister", "relationship": "sibling", "key": "sister"},
     "parkinson": {"name": "Sister", "relationship": "sibling", "key": "sister"},
-    # Spouse — respiratory / general
-    "respiratory": {"name": "Spouse", "relationship": "spouse", "key": "spouse"},
-    "asthma": {"name": "Spouse", "relationship": "spouse", "key": "spouse"},
-    "copd": {"name": "Spouse", "relationship": "spouse", "key": "spouse"},
-    "allergy": {"name": "Spouse", "relationship": "spouse", "key": "spouse"},
-    "pulmonary": {"name": "Spouse", "relationship": "spouse", "key": "spouse"},
-    "cystic fibrosis": {"name": "Spouse", "relationship": "spouse", "key": "spouse"},
-    "alpha-1": {"name": "Spouse", "relationship": "spouse", "key": "spouse"},
+    # Me (general) — respiratory / allergy / pulmonary
+    "respiratory": {"name": "Me", "relationship": "self", "key": "me"},
+    "asthma": {"name": "Me", "relationship": "self", "key": "me"},
+    "copd": {"name": "Me", "relationship": "self", "key": "me"},
+    "allergy": {"name": "Me", "relationship": "self", "key": "me"},
+    "pulmonary": {"name": "Me", "relationship": "self", "key": "me"},
+    "cystic fibrosis": {"name": "Me", "relationship": "self", "key": "me"},
+    "alpha-1": {"name": "Me", "relationship": "self", "key": "me"},
 }
 
 # Folder display order
-FOLDER_ORDER = ["me", "mom", "dad", "sister", "spouse"]
+FOLDER_ORDER = ["me", "mom", "dad", "sister"]
 
 
 @dataclass(frozen=True)
@@ -520,50 +520,6 @@ def _get_synthetic_templates(folder_key: str, name: str) -> list[dict]:
                 "Assessment": "1. ADHD, Combined Type -- confirmed  2. Executive dysfunction -- moderate  3. Comorbid depression -- address both  4. Family screening recommended -- 4-8x heritable",
             }},
         ]
-    elif folder_key == "spouse":
-        return [
-            {"title": f"Pulmonary Function Tests -- {name}", "sections": {
-                "Patient": f"Name: {name} | DOB: 1988-09-30 | ID: MR-005",
-                "Spirometry": (
-                    f"Date: {now}\n"
-                    "FEV1: 2.1 L (68% predicted) -- REDUCED\n"
-                    "FVC: 3.4 L (85% predicted) -- Normal\n"
-                    "FEV1/FVC Ratio: 0.62 -- Obstructive pattern\n"
-                    "Bronchodilator Response: FEV1 improved 15% (+320mL) -- POSITIVE\n"
-                    "PEF: 340 L/min (72% predicted)"
-                ),
-                "Assessment": "1. Moderate persistent asthma -- reversible obstruction confirmed  2. Well-controlled on current regimen  3. Family history: Atopy in multiple members  4. Allergic triggers: dust mites, pollen, pet dander",
-                "Medications": "Fluticasone/Salmeterol 250/50 DPI BID, Albuterol PRN, Montelukast 10mg QHS",
-            }},
-            {"title": f"Allergy Panel -- {name}", "sections": {
-                "Patient": f"Name: {name} | DOB: 1988-09-30 | ID: MR-005",
-                "IgE Results": (
-                    f"Date: 2026-02-15\n"
-                    "Total IgE: 485 IU/mL (Ref: 0-100) -- ELEVATED\n"
-                    "Dust Mite (D. pteronyssinus): Class 4 -- STRONGLY POSITIVE\n"
-                    "Cat Dander: Class 3 -- POSITIVE\n"
-                    "Dog Dander: Class 2 -- MODERATE\n"
-                    "Timothy Grass: Class 4 -- STRONGLY POSITIVE\n"
-                    "Ragweed: Class 3 -- POSITIVE\n"
-                    "Alternaria (mold): Class 2 -- MODERATE\n"
-                    "Milk: Class 0 -- NEGATIVE\n"
-                    "Egg: Class 0 -- NEGATIVE\n"
-                    "Peanut: Class 0 -- NEGATIVE"
-                ),
-                "Assessment": "1. Allergic rhinitis -- multiple sensitizations  2. Allergic asthma -- dust mite and pollen driven  3. Consider allergen immunotherapy  4. Family: atopic predisposition is heritable (multifactorial, ~70% concordance in twins)",
-            }},
-            {"title": f"Alpha-1 Antitrypsin Screening -- {name}", "sections": {
-                "Patient": f"Name: {name} | DOB: 1988-09-30 | ID: MR-005",
-                "Lab Results": (
-                    f"Date: 2026-04-05\n"
-                    "A1AT Level: 82 mg/dL (Ref: 100-300) -- LOW\n"
-                    "Phenotype: MZ -- Heterozygous carrier\n"
-                    "Genotype: PiMZ (one S allele, one Z allele)"
-                ),
-                "Assessment": "1. Alpha-1 Antitrypsin Deficiency -- MZ carrier state  2. Moderate risk for early COPD if smoking exposure  3. Offspring: 50% probability of inheriting M or Z allele  4. Avoid smoking and occupational exposures  5. Annual PFT monitoring recommended",
-            }},
-        ]
-
     # Default generic template
     return [
         {"title": f"Medical Record -- {name}", "sections": {

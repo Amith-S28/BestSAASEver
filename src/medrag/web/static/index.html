@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MedRAG — Local Medical RAG</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=2">
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="/app.js"></script>
+  <script src="/app.js?v=2"></script>
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 <div class="app" x-data="medrag">
 
   <!-- ── Sidebar ────────────────────────────── -->
-  <aside class="sidebar" role="complementary" aria-label="Family member management">
+  <aside class="sidebar" :class="{ 'open': sidebarOpen }" role="complementary" aria-label="Family member management">
     <div class="sidebar-header">
       <h1>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -198,6 +198,24 @@
 
   <!-- ── Main Chat Area ──────────────────────── -->
   <main class="main">
+    <!-- Mobile nav header -->
+    <div class="mobile-header">
+      <button class="mobile-menu-btn" @click="sidebarOpen = true" aria-label="Open menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <span class="mobile-title">MedRAG</span>
+      <button class="mobile-new-chat" @click="startNewConversation(activeFolderId)" x-show="activeFolderId" aria-label="New conversation">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Sidebar backdrop for mobile -->
+    <div class="sidebar-backdrop" x-show="sidebarOpen" @click="sidebarOpen = false" x-transition.opacity.duration.200ms></div>
+
     <!-- Active folder indicator -->
     <div class="chat-header" x-show="activeFolderId">
       <div class="chat-header-left">
@@ -310,6 +328,9 @@
       </span>
     </div>
   </main>
+
+  <!-- Toast notification -->
+  <div class="toast" x-show="toastVisible" x-transition.opacity.duration.200ms x-text="toastMessage" aria-live="polite" role="status"></div>
 
 </div>
 

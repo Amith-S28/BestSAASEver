@@ -67,13 +67,12 @@ class TestCategoryFolders:
             assert "key" in info
             assert info["key"] in FOLDER_ORDER
 
-    def test_five_folders_exist(self) -> None:
-        assert len(FOLDER_ORDER) == 5
+    def test_four_folders_exist(self) -> None:
+        assert len(FOLDER_ORDER) == 4
         assert "me" in FOLDER_ORDER
         assert "mom" in FOLDER_ORDER
         assert "dad" in FOLDER_ORDER
         assert "sister" in FOLDER_ORDER
-        assert "spouse" in FOLDER_ORDER
 
     def test_metabolic_maps_to_me(self) -> None:
         assert CATEGORY_FOLDERS["metabolic"]["key"] == "me"
@@ -87,8 +86,8 @@ class TestCategoryFolders:
     def test_neurology_maps_to_sister(self) -> None:
         assert CATEGORY_FOLDERS["neurology"]["key"] == "sister"
 
-    def test_respiratory_maps_to_spouse(self) -> None:
-        assert CATEGORY_FOLDERS["respiratory"]["key"] == "spouse"
+    def test_respiratory_maps_to_me(self) -> None:
+        assert CATEGORY_FOLDERS["respiratory"]["key"] == "me"
 
 
 class TestGetFolderInfo:
@@ -114,10 +113,10 @@ class TestGetFolderInfo:
         assert info["name"] == "Sister"
         assert info["relationship"] == "sibling"
 
-    def test_spouse_folder(self) -> None:
-        info = get_folder_info("spouse")
-        assert info["name"] == "Spouse"
-        assert info["relationship"] == "spouse"
+    def test_unknown_folder(self) -> None:
+        info = get_folder_info("unknown")
+        assert info["name"] == "Unknown"
+        assert info["relationship"] == "other"
 
 
 # ── Article filtering ───────────────────────────────────────────────────────
@@ -157,10 +156,10 @@ class TestFilterMedicalArticles:
         result = filter_medical_articles(articles, limit=1)
         assert result[0][1] == "sister"
 
-    def test_matches_asthma_to_spouse(self) -> None:
+    def test_matches_asthma_to_me(self) -> None:
         articles = self._make_articles(["Asthma inhaler technique review"])
         result = filter_medical_articles(articles, limit=1)
-        assert result[0][1] == "spouse"
+        assert result[0][1] == "me"
 
     def test_respects_limit(self) -> None:
         articles = self._make_articles([f"Article {i}" for i in range(100)])
@@ -206,10 +205,6 @@ class TestGenerateSyntheticDocs:
 
     def test_generates_pdfs_for_sister(self, tmp_path: Path) -> None:
         paths = generate_synthetic_docs(tmp_path, "sister", count=2)
-        assert len(paths) >= 1
-
-    def test_generates_pdfs_for_spouse(self, tmp_path: Path) -> None:
-        paths = generate_synthetic_docs(tmp_path, "spouse", count=2)
         assert len(paths) >= 1
 
     def test_respects_count(self, tmp_path: Path) -> None:
