@@ -80,12 +80,23 @@ class MedRAGDatabase:
         return None
 
     def _ensure_schema(self) -> None:
-        """Migrate old table schema to include folder_id if missing."""
+        """Migrate old table schema and validate vector dimension matches config."""
         if self.TABLE_NAME not in self.db.table_names():
             return
         table = self.db.open_table(self.TABLE_NAME)
         schema = table.schema
         col_names = [f.name for f in schema]
+
+        # Explicit vector dimension mismatch validation
+        try:
+            vector_field = schema.field("vector")
+            current_dim = getattr(vector_field.type, "list_size", None)
+            if current_dim and current_dim != settings.embedding_dim:
+                print(f"[medrag] ⚠️ Vector dimension mismatch ({current_dim} vs expected {settings.embedding_dim}). Recreating LanceDB table...")
+                self.db.drop_table(self.TABLE_NAME)
+                return
+        except Exception as e:
+            print(f"[medrag] Schema inspection warning: {e}")
 
         if "folder_id" not in col_names:
             # Old schema without folder_id — need to rebuild

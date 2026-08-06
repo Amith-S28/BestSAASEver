@@ -28,9 +28,10 @@ The architecture is divided into four cleanly decoupled layers, selected specifi
 | Layer | Component | Technical Specifications | Strategic Role |
 | --- | --- | --- | --- |
 | **1. Ingestion / OCR** | **Chandra OCR 2** | 5B Vision-Language Model | Converts raw PDFs and image scans into structured, layout-preserved Markdown and native tables. |
-| **2. Vectorization** | **Jina-Embeddings-v5-Omni-Small** | ~700M active parameters (Text config), 32,768 token context window | Translates full, unbroken text blocks into dense multi-dimensional vectors. |
-| **3. Storage & Search** | **LanceDB** | Serverless, Embedded, Apache Arrow Columnar Engine | Stores text and vector arrays directly on disk with zero idle memory consumption; runs native hybrid search. |
-| **4. Synthesis Brain** | **Qwen 3.5 9B Instruct** | 9B Autoregressive LLM, High-Precision Quantization (Q5_K_M / Q8_0) | Processes retrieved context to generate clinically coherent, citation-backed answers. |
+| **2. Vectorization** | **Jina-Embeddings-v5-Omni-Small** | 1024-dimensional dense vectors, 32k token context window | Translates full, unbroken text blocks into dense multi-dimensional vectors. |
+| **3. Storage & Search** | **LanceDB** | Serverless, Embedded, Apache Arrow Columnar Engine | Stores text and vector arrays directly on disk; runs native hybrid search. |
+| **4. Synthesis Brain** | **Dynamic LLM Router** | Auto-routes: Local (LM Studio) or Cloud Tiers (Ling, Laguna, Nemotron) | Processes retrieved context to generate clinically coherent, citation-backed answers. |
+| **5. Reranking (Opt.)**| **NVIDIA NIM Reranker** | nv-rerankqa-mistral-4b-v3 (API) | Reorders retrieved passages by clinical relevance before LLM synthesis. |
 
 ---
 
@@ -51,7 +52,7 @@ The architecture is divided into four cleanly decoupled layers, selected specifi
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ PHASE 2: EMBEDDING (Jina v5 Omni-Small)                │
+│ PHASE 2: EMBEDDING (Jina-Embeddings-v5-Omni-Small)     │
 │ - Document passed as a single atomic unit (No chunking)│
 │ - 32k context preserves cross-page clinical relevancy  │
 └────────────────────────────────────────────────────────┘
@@ -71,9 +72,15 @@ The architecture is divided into four cleanly decoupled layers, selected specifi
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ PHASE 4: SYNTHESIS (Qwen 3.5 9B Instruct)              │
-│ - Context assembly from full-document lookups          │
-│ - Local token generation with exact document citations │
+│ PHASE 3.5: RERANKING (NVIDIA NIM) - Optional           │
+│ - Reorders top passages by clinical relevance          │
+└────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌────────────────────────────────────────────────────────┐
+│ PHASE 4: SYNTHESIS (Dynamic LLM Router)                │
+│ - Auto-routes to Local (LM Studio) or Cloud Tiers      │
+│ - Context assembly from reranked document lookups      │
 └────────────────────────────────────────────────────────┘
 
 ```
@@ -92,7 +99,7 @@ The vector coordinates along with the raw Markdown text are committed directly t
 
 ### Phase 4: Intent-Driven Retrieval & Synthesis
 
-When a query is made, LanceDB executes a hybrid search. It concurrently assesses semantic concepts and exact keyword strings (crucial for pinpointing alphanumeric medical indicators like `HbA1c` or `eGFR`). The top whole-document matches are combined using Reciprocal Rank Fusion (RRF) and fed directly into Qwen 3.5 9B Instruct. Qwen synthesizes the data and formulates a response anchored explicitly to the extracted clinical text.
+When a query is made, LanceDB executes a hybrid search. It concurrently assesses semantic concepts and exact keyword strings. The top matches can optionally be refined by the **NVIDIA NIM Reranker** (`nv-rerankqa-mistral-4b-v3`) for higher clinical precision. The context is then passed to the **Dynamic LLM Router**, which classifies the query's intent and token volume. It automatically routes the request to either a local model (via LM Studio) or a free cloud tier (Ling 3.0 Flash, Laguna S 2.1, or Nemotron 3 Ultra). The selected model synthesizes the data and formulates a citation-backed response.
 
 ---
 
@@ -103,9 +110,9 @@ When a query is made, LanceDB executes a hybrid search. It concurrently assesses
 * **The Traditional Approach:** RAG systems usually segment text every 512 to 1024 tokens, which fractures tables and breaks narrative continuity across multi-page medical charts.
 * **The System Solution:** By utilizing a 32k token embedding window, documents are kept completely whole. This prevents data loss at arbitrary boundaries and reduces the backend complexity of tracking overlapping chunk boundaries.
 
-### Decision 2: Exclusion of an External Reranker Model
+### Decision 2: Inclusion of an Optional NIM Reranker and Cloud Router
 
-* **The Rationale:** Rerankers are typically employed to re-sort hundreds of small, fragmented text chunks. Because this pipeline retrieves complete, high-context documents, the total candidate pool returned by the database is minimal. Adding a local Cross-Encoder reranker would incur a noticeable query latency penalty (~1 to 2.5 seconds per request) with virtually zero gain in accuracy. LanceDB’s internal RRF scoring is structurally sufficient.
+* **The Rationale:** While hybrid search (RRF) is strong, adding an optional NVIDIA NIM Reranker significantly improves the clinical precision of the top passages sent to the LLM. Furthermore, the system is no longer strictly bound to a single local model. The new Dynamic LLM Router allows falling back to powerful cloud models (like Nemotron 550B) for complex reasoning (e.g., hereditary disease patterns), while still supporting a fully offline `MODE=local` execution for privacy-strict environments.
 
 ### Decision 3: Serverless Embedded Storage over Heavy Daemons
 
@@ -121,18 +128,18 @@ Unified memory allocation on the M5 chip is balanced to optimize precision witho
 
 * **System Overhead (macOS / UI / Active Apps):** ~4.5 GB
 * **Chandra OCR 2 (5B Parameters, 4-bit Quantization):** ~3.5 GB
-* **Jina v5 Omni-Small (Text configuration):** ~1.5 GB
+* **Embedding (Jina v5 Omni-Small):** ~1.5 GB
 * **LanceDB (Zero-copy memory mapped files via Arrow):** ~0.0 GB
-* **Qwen 3.5 9B Instruct (5-bit Medium / Q5_K_M Quantization):** ~6.5 GB
+* **Local Synthesis (if MODE=local, e.g., via LM Studio):** ~6.5 GB
 * **Available System Headroom (Safety Buffer):** **~8.0 GB**
 
 ### Sequential Memory Management Strategy (Optional Acceleration)
 
 To unlock maximum precision, the pipeline can implement a sequential execution lifecycle:
 
-1. **Ingestion State:** Initialize Chandra OCR 2 and Jina v5. Parse raw files into LanceDB.
+1. **Ingestion State:** Initialize Chandra OCR 2 and local embedding models. Parse raw files into LanceDB.
 2. **Purge State:** Clear Chandra OCR 2 from system memory, reclaiming ~3.5GB of VRAM.
-3. **Inference State:** Load an unquantized or 8-bit quantized (`Q8_0`) variant of Qwen 3.5 9B into the newly vacated memory space, boosting text synthesis speed and reasoning accuracy during active chat sessions.
+3. **Inference State:** Load local LLM variants into LM Studio (if running `MODE=local`) or rely on cloud routing, keeping system overhead minimal during active chat sessions.
 
 ---
 

@@ -1,9 +1,8 @@
 """Embedding engine — converts parsed Markdown into dense vectors.
 
-Architecture decision: Documents are embedded as WHOLE units (no chunking).
-Using BGE-small-en-v1.5 (130MB, 384-dim) for fast local inference on Apple Silicon.
-For larger context needs, switch to jinaai/jina-embeddings-v5-small (1.3GB, 1024-dim)
-via the EMBEDDING_MODEL env var.
+Uses jinaai/jina-embeddings-v5-small (1024-dim, 32k token context) for full
+document embeddings without truncation. Runs on AMD GPU via DirectML with
+graceful fallback to CPU.
 """
 
 from __future__ import annotations
@@ -12,6 +11,50 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from medrag.config import settings
+
+
+def _detect_best_device() -> str | object:
+    """Auto-detect the best available compute device.
+
+    Priority: user override > CUDA > DirectML (AMD) > MPS (Apple) > CPU.
+    Maps string "dml" -> torch_directml.device().
+    """
+    target = settings.compute_device.lower()
+
+    if target == "dml":
+        try:
+            import torch_directml
+            return torch_directml.device()
+        except ImportError:
+            print("[medrag] DirectML requested but torch-directml not installed.")
+            print("Falling back to CPU.")
+            return "cpu"
+
+    if target in ("cuda", "mps", "cpu"):
+        return target
+
+    # Auto detection
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except ImportError:
+        pass
+
+    try:
+        import torch_directml
+        return torch_directml.device()
+    except ImportError:
+        pass
+
+    try:
+        import torch
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+    except ImportError:
+        pass
+
+    return "cpu"
 
 
 class Embedder:
@@ -24,17 +67,31 @@ class Embedder:
 
     @property
     def model(self) -> SentenceTransformer:
-        """Lazy-load the embedding model (first call loads to GPU/CPU)."""
+        """Lazy-load the embedding model (first call loads to GPU/CPU).
+
+        Includes graceful fallback: if DirectML initialization fails,
+        retries on CPU without crashing.
+        """
         if self._model is None:
             print(f"[medrag] Loading embedding model: {self.model_name}")
-            self._model = SentenceTransformer(
-                self.model_name,
-                device=self._device or ("mps" if _has_mps() else "cpu"),
-                trust_remote_code=True,
-            )
+            device = self._device or _detect_best_device()
+            try:
+                self._model = SentenceTransformer(
+                    self.model_name,
+                    device=device,
+                    trust_remote_code=True,
+                )
+            except Exception as e:
+                print(f"[medrag] Device load failed ({e}). Falling back to CPU...")
+                self._model = SentenceTransformer(
+                    self.model_name,
+                    device="cpu",
+                    trust_remote_code=True,
+                )
+
             # Update dim from actual model if available
             actual_dim = self._model.get_sentence_embedding_dimension()
-            print(f"[medrag]   → Model loaded (dim={actual_dim})")
+            print(f"[medrag]   -> Model loaded (dim={actual_dim}, device={device})")
         return self._model
 
     @property
@@ -81,12 +138,16 @@ class Embedder:
         if "jina" in self.model_name.lower():
             kwargs["prompt_name"] = task
 
-        vecs = model.encode(texts, normalize_embeddings=True, batch_size=8, **kwargs)
+        # Reduced batch size to 4 to prevent VRAM spikes on 8GB GPUs
+        vecs = model.encode(texts, normalize_embeddings=True, batch_size=4, **kwargs)
         return vecs
 
 
 def _has_mps() -> bool:
-    """Check if Apple Metal Performance Shaders are available."""
+    """Check if Apple Metal Performance Shaders are available.
+
+    Deprecated: use _detect_best_device() instead for full device support.
+    """
     try:
         import torch
         return hasattr(torch.backends, "mps") and torch.backends.mps.is_available()

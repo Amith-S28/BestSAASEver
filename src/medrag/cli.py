@@ -63,7 +63,7 @@ def query(
     if result.sources:
         console.print("\n[bold]Sources:[/bold]")
         for src in result.sources:
-            console.print(f"  📄 {src}")
+            console.print(f"  [Source] {src}")
 
     console.print(f"\n[dim]Model: {result.model} | Tokens: {result.tokens_used}[/dim]")
 
@@ -86,7 +86,7 @@ def status() -> None:
     if info["documents"]:
         console.print("\n[bold]Indexed Documents:[/bold]")
         for doc in info["documents"]:
-            console.print(f"  📄 {doc}")
+            console.print(f"  [Doc] {doc}")
 
 
 @app.command()
@@ -102,17 +102,32 @@ def serve(
     h = host or settings.web_host
     p = port or settings.web_port
 
-    console.print(f"\n[bold]🏥 MedRAG Web Server[/bold]")
-    console.print(f"   → [cyan]http://{h}:{p}[/cyan]")
-    console.print(f"   → All data stays local\n")
+    console.print(f"\n[bold][Server] MedRAG Web Server[/bold]")
+    console.print(f"   -> [cyan]http://{h}:{p}[/cyan]")
+    console.print(f"   -> All data stays local\n")
 
-    uvicorn.run(
-        "medrag.web.app:app",
-        host=h,
-        port=p,
-        reload=reload,
-        log_level="info",
-    )
+    import sys
+    from pathlib import Path
+    src_dir = str(Path(__file__).parent.parent)
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+
+    if reload:
+        uvicorn.run(
+            "medrag.web.app:app",
+            host=h,
+            port=p,
+            reload=reload,
+            log_level="info",
+        )
+    else:
+        from medrag.web.app import app as web_app
+        uvicorn.run(
+            web_app,
+            host=h,
+            port=p,
+            log_level="info",
+        )
 
 
 @app.command()
@@ -124,9 +139,9 @@ def check() -> None:
     connected = synth.check_connection()
 
     if connected:
-        console.print("\n[bold green]✅ LM Studio is running and model is loaded[/bold green]")
+        console.print("\n[bold green][OK] LM Studio is running and model is loaded[/bold green]")
     else:
-        console.print("\n[bold red]❌ LM Studio is not reachable[/bold red]")
+        console.print("\n[bold red][ERROR] LM Studio is not reachable[/bold red]")
         console.print("\nTo fix:")
         console.print("  1. Open LM Studio")
         console.print("  2. Load [cyan]Qwen3-9B-Instruct[/cyan] (or similar)")
@@ -146,7 +161,7 @@ def download(
     """
     from medrag.download import run_download, FOLDER_ORDER, get_folder_info
 
-    console.print("\n[bold]📥 MedRAG Document Downloader[/bold]")
+    console.print("\n[bold][Downloader] MedRAG Document Downloader[/bold]")
     console.print(f"   Target: [cyan]{count}[/cyan] documents")
     if clean:
         console.print("   Mode: [red]clean[/red] (existing data will be deleted)")
@@ -171,6 +186,45 @@ def download(
         title="[bold]Download Summary[/bold]",
         border_style="green" if result["failures"] == 0 else "yellow",
     ))
+
+
+@app.command()
+def synthea(
+    csv_dir: str = typer.Option(None, "--csv-dir", "-d", help="Path to Synthea CSV directory (downloads sample if not provided)"),
+    limit: int = typer.Option(10, "--limit", "-l", help="Max number of patients to process"),
+) -> None:
+    """Process Synthea CSV data and generate encounter PDFs.
+    
+    Generates realistic medical PDFs (one per encounter) from Synthea CSV
+    outputs, saves them to a 'SyntheticData' folder, and ingests them into MedRAG.
+    """
+    from medrag.synthea import SyntheaIngestor
+    
+    console.print("\n[bold][Synthea] MedRAG Synthetic Data Ingestor[/bold]")
+    
+    ingestor = SyntheaIngestor(output_dir="SyntheticData")
+    ingestor.process(csv_dir=csv_dir, limit_patients=limit)
+
+
+@app.command()
+def corpus(
+    subset: str = typer.Argument("textbooks", help="Hugging Face corpus subset (e.g., textbooks, statpearls, pubmed)"),
+    limit: int = typer.Option(1000, "--limit", "-l", help="Max number of snippets to ingest (0 to download ALL)"),
+    batch_size: int = typer.Option(64, "--batch-size", "-b", help="Number of documents per embedding batch"),
+) -> None:
+    """Download and ingest MedRAG Hugging Face Corpus datasets.
+    
+    Streams pre-processed medical datasets (like textbooks or PubMed) directly
+    from Hugging Face and ingests them into the local LanceDB vector store.
+    """
+    try:
+        from medrag.corpus import CorpusIngestor
+    except ImportError as e:
+        console.print(f"[bold red]Error loading corpus module:[/bold red] {e}")
+        raise typer.Exit(1)
+        
+    ingestor = CorpusIngestor()
+    ingestor.ingest_subset(subset, limit=limit, batch_size=batch_size)
 
 
 if __name__ == "__main__":

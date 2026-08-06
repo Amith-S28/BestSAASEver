@@ -118,14 +118,14 @@ def download_pmc_list(cache_dir: Path | None = None) -> list[PmcArticle]:
     # Download fresh
     print("[medrag:download] Downloading PMC open-access article list...")
     try:
-        with httpx.Client(timeout=120.0) as client:
+        with httpx.Client(timeout=5.0) as client:
             resp = client.get(PMC_OA_LIST_URL, follow_redirects=True)
             resp.raise_for_status()
             cache_file.write_bytes(resp.content)
             print(f"[medrag:download] Cached PMC list ({len(resp.content):,} bytes)")
             return _parse_pmc_list(resp.text)
     except httpx.HTTPError as e:
-        print(f"[medrag:download] ✗ Failed to download PMC list: {e}")
+        print(f"[medrag:download] [FAIL] Failed to download PMC list: {e}")
         if cache_file.exists():
             print("[medrag:download] Using stale cache as fallback")
             return _parse_pmc_list(cache_file.read_text())
@@ -226,7 +226,7 @@ def download_pdf(
     dest_file = dest_dir / f"{pmcid}.pdf"
 
     if dest_file.exists():
-        print(f"[medrag:download]   ✓ Already cached: {pmcid}")
+        print(f"[medrag:download]   [OK] Already cached: {pmcid}")
         return dest_file
 
     # Try PDF URL
@@ -235,7 +235,7 @@ def download_pdf(
         resp = client.get(pdf_url, follow_redirects=True, timeout=60.0)
         if resp.status_code == 200 and "pdf" in resp.headers.get("content-type", "").lower():
             dest_file.write_bytes(resp.content)
-            print(f"[medrag:download]   ✓ Downloaded {pmcid} ({len(resp.content):,} bytes)")
+            print(f"[medrag:download]   [OK] Downloaded {pmcid} ({len(resp.content):,} bytes)")
             return dest_file
     except httpx.HTTPError:
         pass
@@ -245,18 +245,18 @@ def download_pdf(
     try:
         resp = client.get(article_url, follow_redirects=True, timeout=60.0)
         if resp.status_code != 200:
-            print(f"[medrag:download]   ✗ {pmcid}: HTTP {resp.status_code}")
+            print(f"[medrag:download]   [FAIL] {pmcid}: HTTP {resp.status_code}")
             return None
         # Check if we got a PDF (sometimes direct links work)
         if "pdf" in resp.headers.get("content-type", "").lower():
             dest_file.write_bytes(resp.content)
-            print(f"[medrag:download]   ✓ Downloaded {pmcid} (via article page)")
+            print(f"[medrag:download]   [OK] Downloaded {pmcid} (via article page)")
             return dest_file
     except httpx.HTTPError as e:
-        print(f"[medrag:download]   ✗ {pmcid}: {e}")
+        print(f"[medrag:download]   [FAIL] {pmcid}: {e}")
         return None
 
-    print(f"[medrag:download]   ✗ {pmcid}: No PDF found")
+    print(f"[medrag:download]   [FAIL] {pmcid}: No PDF found")
     return None
 
 
@@ -282,22 +282,25 @@ def generate_synthetic_docs(
     # Template lab reports per folder
     templates = _get_synthetic_templates(folder_key, folder_info["name"])
 
-    for i, template in enumerate(templates[:count]):
+    for i in range(count):
+        base_template = templates[i % len(templates)]
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 14)
-        pdf.cell(0, 10, template["title"], new_x="LMARGIN", new_y="NEXT")
+        doc_num = i + 1
+        title = f"{base_template['title']} (Report #{doc_num})"
+        pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(4)
         pdf.set_font("Helvetica", "", 10)
 
-        for section_title, section_text in template["sections"].items():
+        for section_title, section_text in base_template["sections"].items():
             pdf.set_font("Helvetica", "B", 11)
             pdf.cell(0, 8, section_title, new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 10)
-            pdf.multi_cell(0, 5, section_text)
+            pdf.multi_cell(0, 5, f"{section_text}\n[Document Ref: PDF-MED-{doc_num:03d}]")
             pdf.ln(2)
 
-        filename = f"synthetic_{folder_key}_{i+1:02d}.pdf"
+        filename = f"synthetic_{folder_key}_{doc_num:03d}.pdf"
         filepath = dest_dir / filename
         pdf.output(str(filepath))
         generated.append(filepath)
@@ -551,7 +554,7 @@ def setup_family_folders(pipeline: "MedRAGPipeline") -> dict[str, str]:
 
         if name in existing_folders:
             folder_key_to_id[folder_key] = existing_folders[name]
-            print(f"[medrag:download]   ✓ Folder '{name}' already exists: {existing_folders[name]}")
+            print(f"[medrag:download]   [OK] Folder '{name}' already exists: {existing_folders[name]}")
         elif name not in seen_names:
             folder = pipeline.create_folder(name=name, relationship=relationship)
             folder_key_to_id[folder_key] = folder.folder_id
@@ -581,7 +584,7 @@ def run_download(count: int = 50, clean: bool = False) -> dict:
 
     # Clean if requested
     if clean:
-        print("[medrag:download] ═══ Cleaning existing data ═══")
+        print("[medrag:download] === Cleaning existing data ===")
         for folder in pipeline.list_folders():
             pipeline.delete_folder(folder.folder_id)
             print(f"[medrag:download]   Deleted folder: {folder.name}")
@@ -590,7 +593,7 @@ def run_download(count: int = 50, clean: bool = False) -> dict:
         print("[medrag:download]   Cleaned default folder documents")
 
     # Step 1: Setup folders
-    print("[medrag:download] ═══ Setting up family folders ═══")
+    print("[medrag:download] === Setting up family folders ===")
     folder_key_to_id = setup_family_folders(pipeline)
 
     download_dir = Path(settings.raw_dir) / "downloads"
@@ -599,7 +602,7 @@ def run_download(count: int = 50, clean: bool = False) -> dict:
     failures = 0
 
     # Step 2: Try PMC download
-    print("[medrag:download] ═══ Fetching PMC article list ═══")
+    print("[medrag:download] === Fetching PMC article list ===")
     articles = download_pmc_list(download_dir)
 
     if articles:
@@ -610,7 +613,7 @@ def run_download(count: int = 50, clean: bool = False) -> dict:
         matched = filter_medical_articles(articles, limit=count)
 
         if matched:
-            print(f"[medrag:download] ═══ Downloading {len(matched)} PDFs ═══")
+            print(f"[medrag:download] === Downloading {len(matched)} PDFs ===")
 
             with httpx.Client(timeout=60.0) as client:
                 for i, (article, folder_key) in enumerate(matched):
@@ -631,7 +634,7 @@ def run_download(count: int = 50, clean: bool = False) -> dict:
                             per_folder_counts[folder_key] += 1
                             total_ingested += 1
                         except Exception as e:
-                            print(f"[medrag:download]   ✗ Ingest failed for {article.pmcid}: {e}")
+                            print(f"[medrag:download]   [FAIL] Ingest failed for {article.pmcid}: {e}")
                             failures += 1
                     else:
                         failures += 1
@@ -642,7 +645,7 @@ def run_download(count: int = 50, clean: bool = False) -> dict:
         min_docs = max(1, count // len(FOLDER_ORDER))
         if current < min_docs:
             needed = min_docs - current
-            print(f"[medrag:download] ═══ Generating {needed} synthetic docs for {get_folder_info(folder_key)['name']} ═══")
+            print(f"[medrag:download] === Generating {needed} synthetic docs for {get_folder_info(folder_key)['name']} ===")
             folder_id = folder_key_to_id.get(folder_key)
             if not folder_id:
                 continue
@@ -656,11 +659,11 @@ def run_download(count: int = 50, clean: bool = False) -> dict:
                     per_folder_counts[folder_key] += 1
                     total_ingested += 1
                 except Exception as e:
-                    print(f"[medrag:download]   ✗ Synthetic ingest failed: {e}")
+                    print(f"[medrag:download]   [FAIL] Synthetic ingest failed: {e}")
                     failures += 1
 
     # Step 5: Summary
-    print(f"\n[medrag:download] ═══ Download Complete ═══")
+    print(f"\n[medrag:download] === Download Complete ===")
     print(f"  Total ingested: {total_ingested}")
     for folder_key in FOLDER_ORDER:
         info = get_folder_info(folder_key)

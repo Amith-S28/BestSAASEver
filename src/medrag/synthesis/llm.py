@@ -1,14 +1,15 @@
-"""Synthesis engine — generates cited answers using local LLM via LM Studio.
+"""Synthesis engine — generates cited answers via LM Studio or OpenRouter.
 
-Connects to LM Studio's OpenAI-compatible server running a local model.
+Connects to OpenRouter (cloud) or LM Studio (local) for LLM inference.
 Supports both blocking and streaming (token-by-token) responses.
 Folder-scoped and hereditary (cross-family) prompts with medical disclaimers.
 """
 
 from __future__ import annotations
 
+import time
 from collections.abc import Generator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 from openai import OpenAI
@@ -16,41 +17,53 @@ from openai import OpenAI
 from medrag.config import settings
 from medrag.synthesis.hereditary import build_hereditary_reference
 from medrag.synthesis.hereditary_matcher import HEREDITARY_SEARCH_DISCLAIMER
-
+from medrag.synthesis.router import LLMRouter
 
 BASE_SYSTEM_PROMPT = """\
-You are a precise medical document assistant. You answer questions by citing \
-exact content from the provided context documents.
+You are a precise, board-certified medical doctor and clinical document assistant. \
+You answer questions with absolute professionalism and brutal clinical honesty. \
+You never sugarcoat findings, downplay risks, or hide critical diagnostic possibilities; \
+you speak with direct, clear, and professional clinical truth.
 
 RULES:
-1. ONLY use information from the provided context. Never hallucinate or use outside knowledge.
-2. CITE your sources — reference the document filename when providing information.
-3. If the context doesn't contain the answer, say "The provided documents do not contain \
-information about that."
-4. Preserve all numbers, units, and medical terminology EXACTLY as written.
-5. For lab values, always include units and reference ranges when available.
-6. Structure your answer clearly with headers and bullet points when appropriate.
-7. When comparing values across documents, present them side by side in a table.
+1. If context documents are provided:
+   - Base your answer primarily on the provided context, citing the exact document filenames.
+   - Preserve all numbers, units, and medical terminology EXACTLY as written.
+2. If NO context documents are provided (or if the query is a general medical question):
+   - Explicitly prefix your answer by stating: "Note: Since no medical documents are uploaded or matching, I am answering based on general medical knowledge and clinical guidelines."
+   - Rely on your general medical training to answer the user's question directly, accurately, and professionally.
+3. Be completely honest and direct about patient risks, standard treatments, and potential outcomes.
+4. For lab values, always include units and reference ranges when available.
+5. Structure your answer clearly with headers and bullet points when appropriate.
+6. When comparing values across documents, present them side by side in a table.
 """
 
 FOLDER_SYSTEM_PROMPT = """\
-You are a precise medical document assistant for {name} ({relationship}). \
-You answer questions by citing exact content from their medical documents only.
+You are a precise, board-certified medical doctor and clinical document assistant for {name} ({relationship}). \
+You answer questions with absolute professionalism and brutal clinical honesty. \
+You never sugarcoat findings, downplay risks, or hide critical diagnostic possibilities; \
+you speak with direct, clear, and professional clinical truth.
 
 RULES:
-1. ONLY use information from the provided context. Never hallucinate or use outside knowledge.
-2. CITE your sources — reference the document filename when providing information.
-3. If the context doesn't contain the answer, say "The provided documents for {name} do not contain \
-information about that."
-4. Preserve all numbers, units, and medical terminology EXACTLY as written.
-5. For lab values, always include units and reference ranges when available.
-6. Structure your answer clearly with headers and bullet points when appropriate.
-7. When comparing values across documents, present them side by side in a table.
+1. If context documents are provided:
+   - Base your answer primarily on the provided context, citing the exact document filenames.
+   - Preserve all numbers, units, and medical terminology EXACTLY as written.
+2. If NO context documents are provided for {name} (or if the query is a general medical question):
+   - Explicitly prefix your answer by stating: "Note: Since no medical documents are uploaded for {name}, I am answering based on general medical knowledge and clinical guidelines."
+   - Rely on your general medical training to answer the user's question directly, accurately, and professionally.
+3. Be completely honest and direct about patient risks, standard treatments, and potential outcomes.
+4. For lab values, always include units and reference ranges when available.
+5. Structure your answer clearly with headers and bullet points when appropriate.
+6. When comparing values across documents, present them side by side in a table.
 """
 
 HEREDITARY_SYSTEM_PROMPT = """\
-You are a precise medical document assistant analyzing documents across multiple \
-family members. Compare findings across the following family members:
+You are a precise, board-certified medical doctor and clinical document assistant analyzing documents across multiple \
+family members. You answer questions with absolute professionalism and brutal clinical honesty. \
+You never sugarcoat findings, downplay risks, or hide critical diagnostic possibilities; \
+you speak with direct, clear, and professional clinical truth.
+
+Compare findings across the following family members:
 {family_members}
 
 Your job is to identify HEREDITARY CONDITIONS — diseases that can run in families. \
@@ -68,11 +81,12 @@ family members may be at risk even if not yet documented
 {hereditary_reference}
 
 RULES:
-1. Use the provided context documents as PRIMARY evidence. The reference above tells you \
-WHAT to look for — the documents tell you IF it's there.
+1. Use the provided context documents as PRIMARY evidence. If no documents are uploaded, \
+explicitly note that you are assessing general hereditary guidelines without patient records.
 2. CITE your sources — reference the document filename AND family member when providing information.
-3. If the context doesn't contain the answer, say "The provided documents do not contain \
-information about that."
+3. If no documents are uploaded (or if the query is a general medical question):
+   - Explicitly prefix your answer by stating: "Note: Since no medical documents are uploaded, I am answering based on general medical knowledge and clinical guidelines."
+   - Rely on your general medical training to answer the user's question directly, accurately, and professionally.
 4. Preserve all numbers, units, and medical terminology EXACTLY as written.
 5. For lab values, always include units and reference ranges when available.
 6. Structure your answer clearly with headers and bullet points when appropriate.
@@ -129,7 +143,7 @@ class SynthesisResult:
 
 
 class Synthesizer:
-    """Local LLM synthesizer connecting to LM Studio's OpenAI-compatible API."""
+    """LLM synthesizer connecting to OpenRouter (cloud) or LM Studio (local)."""
 
     def __init__(
         self,
@@ -146,24 +160,32 @@ class Synthesizer:
 
     @property
     def client(self) -> OpenAI:
-        """Lazy-init OpenAI client pointed at LM Studio."""
+        """Lazy-init OpenAI client pointed at LM Studio or cloud provider."""
         if self._client is None:
+            api_key = settings.openai_api_key or "lm-studio"
+            default_headers = {}
+            if "openrouter.ai" in self.base_url:
+                default_headers = {
+                    "HTTP-Referer": "http://localhost:8000",
+                    "X-Title": "MedRAG Medical Assistant",
+                }
             self._client = OpenAI(
                 base_url=self.base_url,
-                api_key="lm-studio",  # LM Studio doesn't require a real key
+                api_key=api_key,
+                default_headers=default_headers if default_headers else None,
             )
         return self._client
 
     def check_connection(self) -> bool:
-        """Verify LM Studio server is running and model is loaded."""
+        """Verify LLM server is running and model is loaded."""
         try:
             models = self.client.models.list()
             available = [m.id for m in models.data]
-            print(f"[medrag] LM Studio models available: {available}")
+            print(f"[medrag] Connection OK. Models available: {available}")
             return True
         except Exception as e:
-            print(f"[medrag] Cannot connect to LM Studio: {e}")
-            print(f"[medrag] Make sure LM Studio is running with a model loaded on {self.base_url}")
+            provider = "OpenRouter" if "openrouter" in self.base_url else "LM Studio"
+            print(f"[medrag] Cannot connect to {provider} at {self.base_url}: {e}")
             return False
 
     def _build_context_block(
@@ -209,6 +231,12 @@ class Synthesizer:
         Returns:
             SynthesisResult with the answer and metadata.
         """
+        # Dynamic model routing
+        selected_model, route_reason = LLMRouter.select_model(
+            query, context_documents, cross_folders=cross_folders,
+        )
+        print(f"[medrag] Router: {route_reason} -> {selected_model}")
+
         system_prompt = _build_system_prompt(
             folder_context, cross_folders,
             query_vector=query_vector, query_text=query,
@@ -223,27 +251,35 @@ class Synthesizer:
             },
         ]
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=2048,
-        )
+        # Exponential backoff retry loop (3 attempts)
+        for attempt in range(3):
+            try:
+                response = self.client.chat.completions.create(
+                    model=selected_model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=2048,
+                )
 
-        choice = response.choices[0]
-        answer = choice.message.content or "No response generated."
+                choice = response.choices[0]
+                answer = choice.message.content or "No response generated."
+                tokens_used = response.usage.total_tokens if response.usage else 0
+                disclaimer = HEREDITARY_SEARCH_DISCLAIMER if cross_folders else ""
 
-        tokens_used = response.usage.total_tokens if response.usage else 0
+                return SynthesisResult(
+                    answer=answer,
+                    sources=source_filenames,
+                    model=selected_model,
+                    tokens_used=tokens_used,
+                    disclaimer=disclaimer,
+                )
+            except Exception as e:
+                if attempt == 2:
+                    raise e
+                print(f"[medrag] Synthesis attempt {attempt + 1} failed ({e}). Retrying...")
+                time.sleep(2 ** attempt)
 
-        disclaimer = HEREDITARY_SEARCH_DISCLAIMER if cross_folders else ""
-
-        return SynthesisResult(
-            answer=answer,
-            sources=source_filenames,
-            model=self.model,
-            tokens_used=tokens_used,
-            disclaimer=disclaimer,
-        )
+        raise RuntimeError("Synthesis failed after 3 attempts")
 
     def synthesize_stream(
         self,
@@ -260,6 +296,7 @@ class Synthesizer:
           - {"type": "token", "data": {"content": "..."}} — answer token
           - {"type": "done", "data": {"model": "...", "tokens_used": N}} — completion
           - {"type": "done", "data": {"model": "...", "tokens_used": N, "disclaimer": "..."}} — with disclaimer
+          - {"type": "error", "data": {"message": "..."}} — stream failure
 
         Args:
             query: User's medical question.
@@ -268,6 +305,12 @@ class Synthesizer:
             cross_folders: If True, use hereditary-aware prompt.
             query_vector: Precomputed query embedding for hereditary relevance matching.
         """
+        # Dynamic model routing
+        selected_model, route_reason = LLMRouter.select_model(
+            query, context_documents, cross_folders=cross_folders,
+        )
+        print(f"[medrag] Router: {route_reason} -> {selected_model}")
+
         system_prompt = _build_system_prompt(
             folder_context, cross_folders,
             query_vector=query_vector, query_text=query,
@@ -286,24 +329,41 @@ class Synthesizer:
             },
         ]
 
-        # Stream tokens
-        stream = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=2048,
-            stream=True,
-        )
+        # Stream connection initialization with retry loop
+        stream = None
+        for attempt in range(3):
+            try:
+                stream = self.client.chat.completions.create(
+                    model=selected_model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=2048,
+                    stream=True,
+                )
+                break
+            except Exception as e:
+                if attempt == 2:
+                    yield {
+                        "type": "error",
+                        "data": {"message": f"Stream connection failed after 3 attempts: {e}"},
+                    }
+                    return
+                print(f"[medrag] Stream attempt {attempt + 1} failed ({e}). Retrying...")
+                time.sleep(2 ** attempt)
 
         tokens_used = 0
-        for chunk in stream:
-            if chunk.usage:
-                tokens_used = chunk.usage.total_tokens
-            delta = chunk.choices[0].delta if chunk.choices else None
-            if delta and delta.content:
-                yield {"type": "token", "data": {"content": delta.content}}
+        try:
+            for chunk in stream:
+                if chunk.usage:
+                    tokens_used = chunk.usage.total_tokens
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    yield {"type": "token", "data": {"content": delta.content}}
+        except Exception as e:
+            yield {"type": "error", "data": {"message": f"Stream interrupted: {e}"}}
+            return
 
-        done_data: dict = {"model": self.model, "tokens_used": tokens_used}
+        done_data: dict = {"model": selected_model, "tokens_used": tokens_used}
         if cross_folders:
             done_data["disclaimer"] = HEREDITARY_SEARCH_DISCLAIMER
         yield {"type": "done", "data": done_data}

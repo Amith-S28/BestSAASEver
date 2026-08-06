@@ -26,6 +26,9 @@ data/raw/
 data/processed/
 data/lancedb/
 data/logs/
+SyntheticData/
+graphify-out/
+scratch/
 
 # Model cache
 .cache/
@@ -34,3 +37,4 @@ data/logs/
 .DS_Store
 Thumbs.db
 .gstack/
+

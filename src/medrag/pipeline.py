@@ -39,7 +39,7 @@ class MedRAGPipeline:
             pdf_path: Path to the file.
             folder_id: Which patient folder this belongs to.
         """
-        print(f"\n[medrag] ═══ Ingesting: {pdf_path} → folder '{folder_id}' ═══")
+        print(f"\n[medrag] === Ingesting: {pdf_path} -> folder '{folder_id}' ===")
 
         # Phase 1: Parse
         doc = parse_pdf(pdf_path)
@@ -54,7 +54,7 @@ class MedRAGPipeline:
         print("[medrag] Indexing in LanceDB...")
         self.database.index_documents([doc], vector.reshape(1, -1), folder_id=folder_id)
 
-        print(f"[medrag] Ingested: {doc.filename} → {doc.doc_id} (folder: {folder_id})")
+        print(f"[medrag] Ingested: {doc.filename} -> {doc.doc_id} (folder: {folder_id})")
         return doc
 
     def ingest_folder(self, directory: str | None = None, folder_id: str = "default") -> list[ParsedDocument]:
@@ -73,11 +73,11 @@ class MedRAGPipeline:
         for doc in docs:
             doc.folder_id = folder_id
 
-        print(f"\n[medrag] ═══ Embedding {len(docs)} document(s) for folder '{folder_id}' ═══")
+        print(f"\n[medrag] === Embedding {len(docs)} document(s) for folder '{folder_id}' ===")
         texts = [doc.markdown for doc in docs]
         vectors = self.embedder.embed_batch(texts, task="retrieval.passage")
 
-        print("[medrag] ═══ Indexing in LanceDB ═══")
+        print("[medrag] === Indexing in LanceDB ===")
         self.database.index_documents(docs, vectors, folder_id=folder_id)
 
         print(f"\n[medrag] All {len(docs)} document(s) ingested into folder '{folder_id}'")
@@ -107,13 +107,7 @@ class MedRAGPipeline:
         """
         search_folder = folder_id if not cross_folders else None
         mode_label = "hereditary (all folders)" if cross_folders else f"folder '{folder_id}'"
-        print(f"\n[medrag] ═══ Query [{mode_label}]: {question} ═══")
-
-        # Check LM Studio connection
-        if not self.synthesizer.check_connection():
-            raise ConnectionError(
-                "LM Studio is not running. Start it and load a model."
-            )
+        print(f"\n[medrag] === Query [{mode_label}]: {question} ===")
 
         # Step 1: Embed query
         print("[medrag] Embedding query...")
@@ -129,17 +123,12 @@ class MedRAGPipeline:
         )
 
         if not results:
-            print("[medrag] No matching documents found")
-            return SynthesisResult(
-                answer="No relevant documents found in the database.",
-                sources=[],
-                model=self.synthesizer.model,
-                tokens_used=0,
-            )
-
-        print(f"[medrag] Found {len(results)} relevant document(s):")
-        for r in results:
-            print(f"  - {r.filename} (folder: {r.folder_id}, score: {r.score:.4f})")
+            print("[medrag] No matching documents found. Proceeding with general medical reasoning.")
+            results = []
+        else:
+            print(f"[medrag] Found {len(results)} relevant document(s):")
+            for r in results:
+                print(f"  - {r.filename} (folder: {r.folder_id}, score: {r.score:.4f})")
 
         # Step 3: Build folder context for LLM
         folder_context: dict | None = None
@@ -161,9 +150,16 @@ class MedRAGPipeline:
                 ]
             }
 
-        # Step 4: Synthesize answer
-        print("[medrag] Generating answer...")
+        # Step 4: Rerank retrieved passages (if enabled)
         context_docs = [(r.filename, r.markdown, r.folder_id) for r in results]
+        if settings.reranker_enabled and context_docs:
+            from medrag.synthesis.reranker import NIMReranker
+            reranker = NIMReranker()
+            context_docs = reranker.rerank(question, context_docs, top_n=min(3, len(context_docs)))
+            print(f"[medrag] Reranked -> top {len(context_docs)} documents")
+
+        # Step 5: Synthesize answer
+        print("[medrag] Generating answer...")
         result = self.synthesizer.synthesize(
             question,
             context_docs,
@@ -185,7 +181,7 @@ class MedRAGPipeline:
         """Streaming variant of query — yields source/token/done events."""
         search_folder = folder_id if not cross_folders else None
         mode_label = "hereditary (all folders)" if cross_folders else f"folder '{folder_id}'"
-        print(f"\n[medrag] ═══ Stream Query [{mode_label}]: {question} ═══")
+        print(f"\n[medrag] === Stream Query [{mode_label}]: {question} ===")
 
         # Embed query
         query_vec = self.embedder.embed(question, task="retrieval.query")
@@ -199,8 +195,8 @@ class MedRAGPipeline:
         )
 
         if not results:
-            yield {"type": "done", "data": {"model": "", "tokens_used": 0, "message": "No documents found"}}
-            return
+            print("[medrag] No matching documents found. Proceeding with general medical reasoning.")
+            results = []
 
         # Build folder context
         folder_context: dict | None = None
@@ -221,8 +217,15 @@ class MedRAGPipeline:
                 ]
             }
 
-        # Stream synthesis
+        # Rerank retrieved passages (if enabled)
         context_docs = [(r.filename, r.markdown, r.folder_id) for r in results]
+        if settings.reranker_enabled and context_docs:
+            from medrag.synthesis.reranker import NIMReranker
+            reranker = NIMReranker()
+            context_docs = reranker.rerank(question, context_docs, top_n=min(3, len(context_docs)))
+            print(f"[medrag] Reranked -> top {len(context_docs)} documents")
+
+        # Stream synthesis
         yield from self.synthesizer.synthesize_stream(
             question,
             context_docs,

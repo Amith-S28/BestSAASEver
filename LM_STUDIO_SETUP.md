@@ -65,12 +65,12 @@ It downloads automatically the first time you run `medrag ingest`.
 
 | Model | Auto-downloaded? | Size |
 |-------|-----------------|------|
-| `jinaai/jina-embeddings-v5-small` | ✅ Yes, on first use | ~1.3 GB |
+| `jinaai/jina-embeddings-v5-omni-small` | ✅ Yes, on first use | ~1.5 GB |
 | `BAAI/bge-small-en-v1.5` | ✅ Yes (fallback) | ~130 MB |
 
 Pre-download if on slow connection:
 ```bash
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('jinaai/jina-embeddings-v5-small', trust_remote_code=True)"
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('jinaai/jina-embeddings-v5-omni-small', trust_remote_code=True)"
 ```
 
 ---
@@ -114,5 +114,5 @@ LMSTUDIO_MODEL=lmstudio-community/Qwen3.5-9B-MLX-4bit
 LMSTUDIO_MAX_CONTEXT=8192
 LMSTUDIO_TEMPERATURE=0.3
 OCR_ENGINE=chandra
-EMBEDDING_MODEL=jinaai/jina-embeddings-v5-small
+EMBEDDING_MODEL=jinaai/jina-embeddings-v5-omni-small
 ```

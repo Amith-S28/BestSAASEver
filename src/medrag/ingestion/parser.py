@@ -313,7 +313,7 @@ def ingest_directory(directory: str | Path | None = None, engine: str | None = N
         print(f"[medrag] Parsing {f.name}...")
         doc = parse_file(f, engine=engine)
         saved = doc.save()
-        print(f"[medrag]   → {doc.doc_id}.md ({doc.pages} pages, saved to {saved})")
+        print(f"[medrag]   -> {doc.doc_id}.md ({doc.pages} pages, saved to {saved})")
         results.append(doc)
 
     print(f"\n[medrag] Ingested {len(results)} document(s)")

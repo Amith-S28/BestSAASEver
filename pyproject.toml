@@ -1,7 +1,7 @@
 [project]
 name = "medrag"
 version = "0.1.0"
-description = "Local high-precision Medical RAG system — fully offline, privacy-preserving"
+description = "High-precision Medical RAG system — Privacy-First Hybrid RAG (Local Vector Storage + Optional Cloud Reasoning)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -38,11 +38,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+amd = [
+    "torch-directml>=0.2.0",     # AMD GPU DirectML backend for PyTorch
+]
 marker = [
     "marker-pdf>=1.6.0",         # Alternative ML-based OCR (has heavy deps)
 ]
 download = [
     "fpdf2>=2.7.0",              # Synthetic medical PDF generation
+]
+corpus = [
+    "datasets>=2.19.0",          # Hugging Face datasets for MedRAG corpus
 ]
 dev = [
     "pytest>=8.0.0",

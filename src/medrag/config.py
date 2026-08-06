@@ -16,20 +16,32 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 class Settings(BaseSettings):
     """All runtime configuration, sourced from environment variables or .env."""
 
-    # ── HuggingFace ──────────────────────────────────────────────────────
+    # ── Operational Mode ─────────────────────────────────────────────
+    mode: str = Field(
+        default="cloud",
+        description="System mode: 'local' (offline LM Studio) or 'cloud' (OpenRouter/NIM)",
+    )
+
+    # ── HuggingFace ──────────────────────────────────────────────────
     hf_token: str | None = Field(
         default=None,
         description="HuggingFace token for faster model downloads",
     )
 
-    # ── LM Studio (Qwen 3.5 9B Instruct) ──────────────────────────────
+    # ── Cloud API Key ────────────────────────────────────────────────
+    openai_api_key: str | None = Field(
+        default=None,
+        description="API key for cloud LLM/reranker (OpenRouter, NVIDIA NIM)",
+    )
+
+    # ── LLM Server / Router ──────────────────────────────────────────
     lmstudio_base_url: str = Field(
-        default="http://127.0.0.1:1234/v1",
-        description="LM Studio OpenAI-compatible server URL",
+        default="https://openrouter.ai/api/v1",
+        description="Cloud LLM endpoint (OpenRouter) or local LM Studio URL",
     )
     lmstudio_model: str = Field(
-        default="google/gemma-4-e4b",
-        description="Model identifier loaded in LM Studio",
+        default="inclusionai/ling-3.0-flash:free",
+        description="Model identifier for LLM synthesis (Tier 1 default)",
     )
     lmstudio_max_context: int = Field(
         default=8192,
@@ -40,14 +52,43 @@ class Settings(BaseSettings):
         description="Sampling temperature for synthesis",
     )
 
-    # ── Embeddings ─────────────────────────────────────────────────────
+    router_mode: str = Field(
+        default="auto",
+        description="LLM routing strategy: 'auto', 'tier1', 'tier2', 'tier3'",
+    )
+
+    # ── Embeddings ────────────────────────────────────────────────────
     embedding_model: str = Field(
-        default="BAAI/bge-small-en-v1.5",
+        default="jinaai/jina-embeddings-v5-omni-small",
         description="HuggingFace model ID for embeddings (local)",
     )
     embedding_dim: int = Field(
-        default=384,
+        default=1024,
         description="Output dimension of the embedding model",
+    )
+
+    # ── Compute Device ───────────────────────────────────────────────
+    compute_device: str = Field(
+        default="auto",
+        description="Compute device: 'auto', 'cpu', 'cuda', 'mps', 'dml'",
+    )
+
+    # ── Reranker ─────────────────────────────────────────────────────
+    reranker_enabled: bool = Field(
+        default=False,
+        description="Enable NVIDIA NIM reranking before LLM synthesis",
+    )
+    reranker_base_url: str = Field(
+        default="https://integrate.api.nvidia.com/v1",
+        description="NVIDIA NIM reranker API endpoint",
+    )
+    reranker_model: str = Field(
+        default="nvidia/nv-rerankqa-mistral-4b-v3",
+        description="Reranker model identifier",
+    )
+    reranker_api_key: str | None = Field(
+        default=None,
+        description="API key for NVIDIA NIM reranker. Falls back to openai_api_key if not set.",
     )
 
     # ── LanceDB ────────────────────────────────────────────────────────
@@ -59,7 +100,7 @@ class Settings(BaseSettings):
     # ── OCR / Parsing ──────────────────────────────────────────────────
     ocr_engine: str = Field(
         default="chandra",
-        description="OCR engine: 'chandra' (best, SOTA), 'chandra-cli' (simpler), 'marker', or 'pymupdf' (fast fallback)",
+        description="OCR engine",
     )
 
     # ── Web Server ──────────────────────────────────────────────────────
@@ -101,15 +142,15 @@ class Settings(BaseSettings):
     )
     hereditary_sync_interval_days: int = Field(
         default=7,
-        description="Days between hereditary data sync attempts (MedGen updates weekly)",
+        description="Days between hereditary data sync attempts",
     )
     hereditary_max_conditions_in_prompt: int = Field(
         default=15,
-        description="Max conditions to include in LLM prompt (selected by relevance to query)",
+        description="Max conditions to include in LLM prompt",
     )
     ncbi_api_key: str | None = Field(
         default=None,
-        description="Optional NCBI API key (increases MedGen rate from 3/s to 10/s)",
+        description="Optional NCBI API key",
     )
     hereditary_sync_on_startup: bool = Field(
         default=False,
@@ -120,6 +161,10 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Support MODE=local override
+if settings.mode.lower() == "local":
+    settings.lmstudio_base_url = "http://127.0.0.1:1234/v1"
 
 # Auto-correct LM Studio base_url if missing /v1 suffix
 if not settings.lmstudio_base_url.rstrip("/").endswith("/v1"):

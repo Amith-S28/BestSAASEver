@@ -65,7 +65,7 @@ def _download_file(url: str, dest: Path, client: httpx.Client) -> Path | None:
         resp.raise_for_status()
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(resp.content)
-        print(f"[medrag:sync]   → {dest.name} ({len(resp.content):,} bytes)")
+        print(f"[medrag:sync]   -> {dest.name} ({len(resp.content):,} bytes)")
         return dest
     except httpx.HTTPError as e:
         print(f"[medrag:sync]   ✗ Download failed: {e}")
