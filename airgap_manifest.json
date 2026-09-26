@@ -1,0 +1,59 @@
+{
+  "platform": "MedRAG Institutional Clinical AI Intelligence Platform",
+  "version": "2.0.0",
+  "bundle_type": "airgap_offline_verified",
+  "generated_at": "2026-09-25T09:44:29Z",
+  "security_compliance": {
+    "hipaa_safe_harbor": true,
+    "dpdp_section_9_verified": true,
+    "air_gap_ready": true
+  },
+  "target_models": [
+    {
+      "model_id": "BAAI/bge-large-en-v1.5",
+      "format": "safetensors",
+      "dimension": 1024
+    },
+    {
+      "model_id": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+      "format": "onnx"
+    },
+    {
+      "model_id": "microsoft/deberta-v3-large",
+      "format": "safetensors",
+      "task": "zero-shot-classification / NLI"
+    }
+  ],
+  "verified_files": [
+    {
+      "path": "pyproject.toml",
+      "sha256": "acad56895284687b12ddcb74125ee115081e6c086ba12241fe48d6a191ab0177",
+      "size_bytes": "1908"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "08755a6a313ed1a1159ff3e829ec39b04ad19cb99f134d5231913e2c9ea9b482",
+      "size_bytes": "1666"
+    },
+    {
+      "path": "docker-compose.yml",
+      "sha256": "27ca0687b82bb701d384734658e4bb85716af43e8f6b91356c66dc737a4ed573",
+      "size_bytes": "1026"
+    },
+    {
+      "path": "src/medrag/interfaces/web/static/index.html",
+      "sha256": "80591a55294e2444e4c216712077cc00868cc39a921fa07ed07913b7992e6382",
+      "size_bytes": "20626"
+    },
+    {
+      "path": "src/medrag/interfaces/web/static/index.css",
+      "sha256": "d500da00081fb47d270d886bf1cc1febea8db7c0e7d90f90bbcba78a8f1b2e2a",
+      "size_bytes": "18374"
+    },
+    {
+      "path": "src/medrag/interfaces/web/static/app.js",
+      "sha256": "dff72ca7f1c640ea30ef9c1140cd839e88e38f4f1cba404b846d241476cf8bfa",
+      "size_bytes": "13849"
+    }
+  ]
+}

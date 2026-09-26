@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: MedRAG Institutional Clinical Intelligence API
+  version: 2.0.0
+  description: Sub-second longitudinal clinical synthesis with deterministic NLI sentence verification.
+servers:
+  - url: http://localhost:8000
+    description: Local Development Server
+paths:
+  /api/v1/clinical/query:
+    post:
+      summary: Execute clinical synthesis query with real-time SSE streaming
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query_text
+              properties:
+                query_text:
+                  type: string
+                  example: "Summarize this patient's renal function trajectory"
+                patient_id:
+                  type: string
+                  nullable: true
+                  example: "pat-001"
+                stream:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Server-Sent Events stream of synthesis chunks and verified footnotes
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '403':
+          description: Insufficient scope or cross-tenant access violation
+        '429':
+          description: Tenant monthly query quota exceeded
+
+  /api/v1/patients/ingest/fhir:
+    post:
+      summary: Upload HL7 FHIR R4 Bundle JSON for background ingestion
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '202':
+          description: Ingestion job queued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  patient_id:
+                    type: string
+                  status:
+                    type: string
+
+  /api/v1/patients/{id}/timeline:
+    get:
+      summary: Retrieve longitudinal structured patient timeline
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Complete PatientTimeline aggregate
+        '404':
+          description: Patient not found in active tenant
+
+  /api/v1/health:
+    get:
+      summary: Get platform subsystem health status
+      responses:
+        '200':
+          description: Subsystem connectivity telemetry
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key

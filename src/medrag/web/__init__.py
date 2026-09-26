@@ -1,1 +1,0 @@
-"""MedRAG Web — local web interface for the Medical RAG system."""

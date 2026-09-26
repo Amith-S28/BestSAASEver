@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  medrag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medrag-clinical-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - MEDRAG_DATA_DIR=/app/data
+      - REDIS_URL=redis://medrag-redis:6379/0
+      - MEDRAG_SECRET_KEY=medrag-institutional-production-super-secret-key-32b
+    volumes:
+      - lancedb-data:/app/data
+      - audit-logs:/app/logs
+    depends_on:
+      - medrag-redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  medrag-redis:
+    image: redis:7.2-alpine
+    container_name: medrag-job-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  lancedb-data:
+    driver: local
+  audit-logs:
+    driver: local
+  redis-data:
+    driver: local

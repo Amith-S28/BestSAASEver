@@ -1,40 +1,58 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.egg-info/
-dist/
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
 # Virtual environments
 .venv/
 venv/
+ENV/
 env/
 
-# IDE
+# IDE & Editor
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Environment
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local data & models
+data/
+data_dev/
+models/
+*.parquet
+*.lancedb
+
+# Environment secrets
 .env
-
-# Data (large files, medical docs — DO NOT commit)
-data/raw/
-data/processed/
-data/lancedb/
-data/logs/
-SyntheticData/
-graphify-out/
-scratch/
-
-# Model cache
-.cache/
-
-# OS
-.DS_Store
-Thumbs.db
-.gstack/
-
+*.pem
+*.key

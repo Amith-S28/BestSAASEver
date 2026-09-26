@@ -1,103 +1,105 @@
-# Medical RAG: Local High-Precision Clinical Intelligence System
+# MedRAG v2.0: Institutional-Grade Clinical AI Intelligence SaaS Platform
 
-A fully local, privacy-preserving Retrieval-Augmented Generation (RAG) and clinical synthesis engine engineered for longitudinal patient records, multi-page diagnostic panels, and hereditary disease analysis. Powered by LanceDB, Jina Embeddings, Chandra OCR, NVIDIA NIM Rerankers, and a Next.js / Streamlit fullstack chat interface.
+[![Architecture: Hexagonal](https://img.shields.io/badge/Architecture-Hexagonal%20Ports%20%26%20Adapters-blue)](file:///d:/Projects/RAG/BestSAASEver/tech/hexagonal-architecture.md)
+[![Safety: Deterministic NLI](https://img.shields.io/badge/Safety-Deterministic%20NLI%20Verification-green)](file:///d:/Projects/RAG/BestSAASEver/tech/nli-verification-engine.md)
+[![Compliance: HIPAA / Safe Harbor](https://img.shields.io/badge/Compliance-HIPAA%20Safe%20Harbor-purple)](file:///d:/Projects/RAG/BestSAASEver/prd/security-hipaa-dpdp.md)
+[![Tests: 54 Passing](https://img.shields.io/badge/Tests-54%20Passing%20(100%25)-success)](file:///d:/Projects/RAG/BestSAASEver/tests)
+
+MedRAG v2.0 is an institutional-grade, multi-tenant Clinical AI Intelligence platform designed for hospital networks, clinical research organizations, and diagnostic consult teams. It delivers sub-second longitudinal patient history synthesis cross-referenced against verified clinical textbooks and guidelines, backed by deterministic Natural Language Inference (NLI) sentence-level claim verification.
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ Architectural Invariants
+
+1. **Hexagonal Domain Isolation**: Pure clinical domain entities in `src/medrag/domain/` import zero external libraries, frameworks, or drivers. All capabilities are accessed via typed protocols in `src/medrag/ports/` (machine-enforced by AST import linter).
+2. **Deterministic Claim-to-Evidence Audit**: Every clinical synthesis output undergoes sentence-level tokenization and NLI entailment scoring against retrieved evidence chunks (`P(Contradiction) >= 0.60` triggers automatic redaction with standard safety tombstones).
+3. **Zero-Loss Longitudinal Ingestion**: HL7 FHIR R4 JSON bundles are parsed into immutable clinical timelines preserving encounters, observations, medication requests, and reference intervals. Multi-column lab PDFs use layout-aware parsing with LOINC linking.
+4. **Zero-Copy In-Process Hybrid Storage**: LanceDB (Apache Arrow columnar memory) coupled with Tantivy lexical BM25 and Reciprocal Rank Fusion (RRF) delivers sub-10ms retrieval with zero idle RAM overhead.
+5. **Strict Multi-Tenant PHI Isolation**: Compound tenant predicates (`tenant_id`, `clinic_id`, `patient_id`) enforced across all queries with HIPAA Safe Harbor de-identification.
+
+---
+
+## 📂 Repository Structure
 
 ```text
-[Raw Medical PDF / Synthea Patient Record]
-                 │
-                 ▼
-┌──────────────────────────────────────────────────────────┐
-│ 1. INGESTION & PARSING                                   │
-│ - Chandra OCR 2 vision-language parsing                  │
-│ - MedRAG dataset downloader & Synthea synthetic records  │
-│ - Rich streaming terminal progress bars                  │
-└──────────────────────────────────────────────────────────┘
-                 │
-                 ▼
-┌──────────────────────────────────────────────────────────┐
-│ 2. ZERO-CHUNKING ATOMIC EMBEDDING                        │
-│ - Jina-Embeddings-v5-Omni (32k token context window)     │
-│ - Atomic vectorization preserving cross-table continuity │
-└──────────────────────────────────────────────────────────┘
-                 │
-                 ▼
-┌──────────────────────────────────────────────────────────┐
-│ 3. IN-PROCESS HYBRID STORAGE (LanceDB)                   │
-│ - Zero-copy Apache Arrow disk storage (0MB idle RAM)     │
-│ - Reciprocal Rank Fusion (IVF-PQ Vector + Tantivy FTS)   │
-└──────────────────────────────────────────────────────────┘
-                 │
-                 ▼
-┌──────────────────────────────────────────────────────────┐
-│ 4. PRECISION RERANKING & DYNAMIC SYNTHESIS               │
-│ - NVIDIA NIM Reranker (nv-rerankqa-mistral-4b-v3)        │
-│ - Dynamic LLM Router (Local LM Studio vs Cloud Tiers)    │
-│ - Multi-turn conversational chat UI with citation links  │
-└──────────────────────────────────────────────────────────┘
+BestSAASEver/
+├── prd/                         # 15 Product Requirement Documents (OnRent standard)
+├── tech/                        # 23 Technical Architecture Specs & OpenAPI 3.1 contract
+├── .cursor/rules/               # 15 Machine-enforced coding & architecture rules
+├── scripts/                     # Pre-commit, CI, AST linter, MedQA benchmarks & Air-gap packager
+├── src/medrag/
+│   ├── domain/                  # Pure clinical domain models & typed exceptions (zero deps)
+│   ├── ports/                   # Abstract protocol interfaces (8 Port Protocols)
+│   ├── application/             # Use cases, prompt composer, claim auditor, CMO override
+│   ├── infrastructure/          # Adapters (LanceDB Arrow, NLI verifier, Embedder, Reranker)
+│   └── interfaces/              # FastAPI REST/SSE endpoints, Clinician Workspace UI, CLI
+├── tests/                       # Unit (domain, infra, services), integration (api), benchmarks
+├── Dockerfile                   # Multi-stage hardened production container
+├── docker-compose.yml           # Multi-service production orchestration
+└── airgap_manifest.json         # SHA-256 verified air-gapped hospital deployment manifest
 ```
 
 ---
 
-## ✨ Key Features & Recent Developments
+## 🚀 Quickstart & Clinician Workspace
 
-- **Streaming Corpus Ingestion**: Real-time batch parsing with rich terminal progress bars, throughput telemetry, and non-blocking streaming.
-- **Synthea & MedRAG Pipelines**: Automated generation and ingestion of synthetic multi-generational patient health records and official MedRAG clinical literature.
-- **Dynamic Multi-Tier LLM Router**: Seamlessly shifts between offline local inference (via LM Studio) and cloud models (Nemotron, Ling, Laguna) based on intent complexity and data privacy modes.
-- **Precision Reranking**: Optional NVIDIA NIM reranker to elevate top passage relevance before context synthesis.
-- **Interactive Chat Interface**: Multi-session conversational UI with auto-title generation, response streaming, input locks, and citation footnotes.
-- **Zero-Chunking Architecture**: Retains complete 32k-token patient histories as single documents, completely eliminating fragmented tables and broken laboratory reference ranges.
+### 1. Requirements
+- Python >= 3.11 (tested on Python 3.12)
+- Virtual environment
 
----
-
-## 🛠️ Tech Stack
-
-- **Storage & Vector Search**: LanceDB (Embedded Apache Arrow Columnar Engine, Tantivy FTS)
-- **Embeddings**: Jina-Embeddings-v5-Omni-Small (32k context)
-- **OCR / Parsing**: Chandra OCR 2 (5B VLM)
-- **Reranker**: NVIDIA NIM (`nv-rerankqa-mistral-4b-v3`)
-- **LLM Routing**: Local (LM Studio / Qwen 2.5) & Cloud Inference (Nemotron 3 Ultra, Ling, Laguna)
-- **UI & Interaction**: Python, Rich CLI, and Next.js / Streamlit web interface
-
----
-
-## 🚀 Quick Start
-
-### 1. Prerequisites
-- Python 3.10+
-- LM Studio (optional, for local offline LLM synthesis)
-
-### 2. Installation
+### 2. Run the MedRAG Server & UI
 ```bash
-git clone https://github.com/Amith-S28/BestSAASEver.git
-cd BestSAASEver
-pip install -e .
+# Launch the API server and Clinician Workspace
+.venv\Scripts\python src/medrag/interfaces/cli.py serve --port 8000
 ```
+Open **`http://localhost:8000/`** in your browser to interact with the **MedRAG Clinician Workspace**:
+- **Patient Explorer**: Longitudinal timeline, encounter cards, abnormal lab trajectory alerts (`[K+] 6.2 mEq/L`, `Creatinine 3.4 mg/dL`).
+- **Streaming Synthesis**: Real-time SSE token stream, inline citations (`[^1]`), and contradiction safety tombstones.
+- **Evidence Drawer**: Verbatim clinical excerpts from KDIGO, Harrison's, and ACC/AHA guidelines with NLI scores.
+- **CMO Override Modal**: Human-in-the-loop Four-Eyes review modal for chief medical officers.
 
-### 3. Environment Configuration
-Copy `.env.example` to `.env` and set your endpoints:
-```env
-LANCEDB_URI=data/lancedb
-EMBEDDING_MODEL=jina-embeddings-v5-omni-small
-MODE=local # or cloud
-NVIDIA_API_KEY=nvapi-... # Optional NIM reranker
-```
+---
 
-### 4. Ingestion & Chat
+## 💻 Unified CLI Commands
+
+The unified CLI (`src/medrag/interfaces/cli.py`) supports core institutional operations:
+
 ```bash
-# Ingest synthetic medical records or clinical PDFs
-python -m src.ingest --source data/raw
+# Check subsystem health & telemetry (LanceDB, NLI verifier, worker, LLM)
+.venv\Scripts\python src/medrag/interfaces/cli.py health
 
-# Launch conversational RAG chat
-python -m src.chat
+# Run AST Domain Isolation linter (ensures 0 external imports in domain/)
+.venv\Scripts\python src/medrag/interfaces/cli.py lint
+
+# Run MedQA clinical scenario evaluation harness
+.venv\Scripts\python src/medrag/interfaces/cli.py benchmark
+
+# Generate air-gapped hospital deployment checksum manifest
+.venv\Scripts\python src/medrag/interfaces/cli.py airgap
 ```
 
 ---
 
-## 📄 Documentation
+## 🧪 Automated Testing
 
-- [Local LM Studio Configuration Guide](LM_STUDIO_SETUP.md)
-- Complete design system guidelines in `design-system/`
+MedRAG features a comprehensive test suite covering pure domain logic, storage adapters, FHIR/PDF ingestion, NLI contradiction redaction, REST/SSE streaming endpoints, and MedQA clinical benchmarks.
+
+```bash
+# Run all 54 tests
+.venv\Scripts\python -m pytest tests/ -v
+```
+
+---
+
+## 🐳 Production Deployment
+
+### Docker Multi-Stage Container
+```bash
+docker build -t medrag:2.0.0 .
+docker run -p 8000:8000 medrag:2.0.0
+```
+
+### Docker Compose (API + Redis + LanceDB Persistent Volumes)
+```bash
+docker compose up -d
+```

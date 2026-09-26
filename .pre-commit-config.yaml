@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: lint-domain-imports
+        name: AST Domain Boundary Linter
+        entry: python scripts/lint_domain_imports.py
+        language: system
+        files: ^src/medrag/domain/
+        pass_filenames: false
