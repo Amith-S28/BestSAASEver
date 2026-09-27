@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedRAG v2.0 - Hexagonal Architecture &amp; Boundary Invariants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #e5e5e5;
+      font-family: 'Geist', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .diagram-container {
+      background: #f5f5f5;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      border-radius: 8px;
+      overflow: hidden;
+      width: 100%;
+      max-width: 960px;
+    }
+    svg { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="diagram-container">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" role="img" aria-labelledby="d1-title d1-desc">
+      <defs>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');
+          .title { font-family: 'Instrument Serif', Georgia, serif; font-size: 28px; fill: #2d3142; }
+          .subtitle { font-family: 'Geist', sans-serif; font-size: 12px; fill: #4f5d75; }
+          .zone-tag { font-family: 'Geist Mono', monospace; font-size: 8px; letter-spacing: 0.14em; fill: #7a8399; font-weight: 600; }
+          .node-tag { font-family: 'Geist Mono', monospace; font-size: 7px; letter-spacing: 0.08em; font-weight: 500; }
+          .node-title { font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 600; fill: #2d3142; }
+          .node-sub { font-family: 'Geist Mono', monospace; font-size: 9px; fill: #4f5d75; }
+          .edge-label { font-family: 'Geist Mono', monospace; font-size: 8px; letter-spacing: 0.06em; fill: #4f5d75; font-weight: 500; }
+          .legend-text { font-family: 'Geist Mono', monospace; font-size: 8px; letter-spacing: 0.08em; fill: #4f5d75; }
+        </style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+        </marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+        </marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+        </marker>
+      </defs>
+
+      <title id="d1-title">MedRAG v2.0 - Hexagonal Architecture &amp; Boundary Invariants</title>
+      <desc id="d1-desc">Hexagonal Architecture diagram detailing inbound interfaces, application services, pure clinical domain invariants, and outbound infrastructure adapters.</desc>
+
+      <!-- 1. Background -->
+      <rect width="960" height="600" fill="#f5f5f5"/>
+
+      <!-- Header -->
+      <text x="40" y="44" class="title">MedRAG v2.0: Hexagonal Architecture &amp; Boundary Invariants</text>
+      <text x="40" y="68" class="subtitle">Pure clinical domain core isolated from external dependencies via 8 machine-enforced Port Protocols (AST linted).</text>
+
+      <!-- 2. Architectural Zones (Z-Order: Zones first) -->
+      <!-- Zone 1: Inbound Interfaces -->
+      <rect x="40" y="96" width="264" height="428" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+      <rect x="52" y="100" width="144" height="14" rx="2" fill="#f5f5f5"/>
+      <text x="56" y="110" class="zone-tag">INGRESS &amp; INTERFACES</text>
+
+      <!-- Zone 2: Hexagonal Domain Core -->
+      <rect x="336" y="96" width="288" height="428" rx="8" fill="rgba(235,108,54,0.02)" stroke="rgba(235,108,54,0.20)" stroke-width="0.8"/>
+      <rect x="348" y="100" width="168" height="14" rx="2" fill="#f5f5f5"/>
+      <text x="352" y="110" class="zone-tag" fill="#eb6c36">HEXAGONAL DOMAIN CORE</text>
+
+      <!-- Zone 3: Infrastructure Adapters -->
+      <rect x="656" y="96" width="264" height="428" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+      <rect x="668" y="100" width="160" height="14" rx="2" fill="#f5f5f5"/>
+      <text x="672" y="110" class="zone-tag">OUTBOUND ADAPTERS &amp; PORTS</text>
+
+      <!-- 3. Connectors (Drawn before nodes so lines stay behind boxes) -->
+      <!-- Workspace to Controller (Vertical) -->
+      <line x1="172" y1="200" x2="172" y2="236" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+      <rect x="150" y="210" width="44" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="172" y="219" class="edge-label" fill="#2e5aa8" text-anchor="middle">HTTP/SSE</text>
+
+      <!-- Controller to Claim Auditor (Elbow right-up) -->
+      <!-- from (280, 268) to (360, 168), mid = 320 -->
+      <path d="M 280,268 H 312 Q 320,268 320,260 V 176 Q 320,168 328,168 H 360" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <rect x="302" y="212" width="36" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="320" y="221" class="edge-label" fill="#eb6c36" text-anchor="middle">DISPATCH</text>
+
+      <!-- Controller to Port Protocols (Elbow right-down) -->
+      <!-- from (280, 292) to (360, 464), mid = 320 -->
+      <path d="M 280,292 H 312 Q 320,292 320,300 V 456 Q 320,464 328,464 H 360" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="302" y="372" width="36" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="320" y="381" class="edge-label" text-anchor="middle">INJECT</text>
+
+      <!-- Claim Auditor to Domain Core (Vertical) -->
+      <line x1="480" y1="196" x2="480" y2="240" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <rect x="452" y="210" width="56" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="480" y="219" class="edge-label" fill="#eb6c36" text-anchor="middle">VERIFIES</text>
+
+      <!-- Domain Core to CMO Override (Vertical) -->
+      <line x1="480" y1="316" x2="480" y2="352" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="446" y="326" width="68" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="480" y="335" class="edge-label" text-anchor="middle">FOUR-EYES</text>
+
+      <!-- CMO Override to Port Protocols (Vertical) -->
+      <line x1="480" y1="416" x2="480" y2="444" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <!-- Claim Auditor to DeBERTa NLI Verifier (Horizontal) -->
+      <line x1="600" y1="164" x2="680" y2="164" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <rect x="618" y="148" width="44" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="640" y="157" class="edge-label" fill="#eb6c36" text-anchor="middle">NLI SCORE</text>
+
+      <!-- Domain Core to LanceDB Store (Horizontal) -->
+      <line x1="600" y1="276" x2="680" y2="276" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="614" y="260" width="52" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="640" y="269" class="edge-label" text-anchor="middle">ARROW RRF</text>
+
+      <!-- FHIR/PDF Ingestion to Domain Core (Elbow left-up) -->
+      <!-- from (680, 376) to (600, 296), mid = 640 -->
+      <path d="M 680,376 H 648 Q 640,376 640,368 V 304 Q 640,296 632,296 H 600" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="624" y="332" width="32" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="640" y="341" class="edge-label" text-anchor="middle">TIMELINE</text>
+
+      <!-- Worker Daemon to LanceDB (Vertical up) -->
+      <line x1="788" y1="440" x2="788" y2="304" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <rect x="760" y="368" width="56" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="788" y="377" class="edge-label" text-anchor="middle">ASYNC SYNC</text>
+
+      <!-- 4. Nodes (Opaque paper mask + styled box + tags + labels) -->
+      
+      <!-- Node A: Clinician Workspace UI -->
+      <rect x="64" y="136" width="216" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="64" y="136" width="216" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="72" y="142" width="48" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+      <text x="96" y="151" class="node-tag" fill="#4f5d75" text-anchor="middle">FRONTEND</text>
+      <text x="172" y="167" class="node-title" text-anchor="middle">Clinician Workspace</text>
+      <text x="172" y="183" class="node-sub" text-anchor="middle">Next.js 15 · SSE Streaming UI</text>
+
+      <!-- Node B: FastAPI SaaS Gateway -->
+      <rect x="64" y="236" width="216" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="64" y="236" width="216" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="72" y="242" width="44" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+      <text x="94" y="251" class="node-tag" fill="#4f5d75" text-anchor="middle">GATEWAY</text>
+      <text x="172" y="267" class="node-title" text-anchor="middle">FastAPI Application</text>
+      <text x="172" y="283" class="node-sub" text-anchor="middle">JWT Auth · Tenant Scoping</text>
+
+      <!-- Node C: CLI & Operational Tools -->
+      <rect x="64" y="336" width="216" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="64" y="336" width="216" height="64" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.4)" stroke-width="1"/>
+      <rect x="72" y="342" width="56" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+      <text x="100" y="351" class="node-tag" fill="#4f5d75" text-anchor="middle">OPERATIONS</text>
+      <text x="172" y="367" class="node-title" text-anchor="middle">Unified CLI &amp; Benchmarks</text>
+      <text x="172" y="383" class="node-sub" text-anchor="middle">MedQA · Airgap Packager</text>
+
+      <!-- Node D: Claim Auditor Service (FOCAL 1) -->
+      <rect x="360" y="136" width="240" height="60" rx="6" fill="#f5f5f5"/>
+      <rect x="360" y="136" width="240" height="60" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.5"/>
+      <rect x="368" y="142" width="56" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.4)" stroke-width="0.8"/>
+      <text x="396" y="151" class="node-tag" fill="#eb6c36" text-anchor="middle">APPLICATION</text>
+      <text x="480" y="166" class="node-title" text-anchor="middle">Claim Auditor Service</text>
+      <text x="480" y="181" class="node-sub" text-anchor="middle">Sentence Decomp · Redaction Gate</text>
+
+      <!-- Node E: Pure Clinical Domain Invariants (FOCAL 2) -->
+      <rect x="360" y="240" width="240" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="360" y="240" width="240" height="76" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.5"/>
+      <rect x="368" y="246" width="60" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.4)" stroke-width="0.8"/>
+      <text x="398" y="255" class="node-tag" fill="#eb6c36" text-anchor="middle">ZERO-DEP CORE</text>
+      <text x="480" y="272" class="node-title" text-anchor="middle">Pure Domain Invariants</text>
+      <text x="480" y="289" class="node-sub" text-anchor="middle">PatientTimeline · Claim · Citation</text>
+      <text x="480" y="303" class="node-sub" fill="#eb6c36" text-anchor="middle">AST import linter: 0 external deps</text>
+
+      <!-- Node F: CMO Override Workflow -->
+      <rect x="360" y="352" width="240" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="360" y="352" width="240" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="368" y="358" width="56" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+      <text x="396" y="367" class="node-tag" fill="#4f5d75" text-anchor="middle">GOVERNANCE</text>
+      <text x="480" y="383" class="node-title" text-anchor="middle">CMO Override Workflow</text>
+      <text x="480" y="399" class="node-sub" text-anchor="middle">Four-Eyes Audit Trail Ledger</text>
+
+      <!-- Node G: Port Protocols Specification -->
+      <rect x="360" y="444" width="240" height="48" rx="6" fill="#f5f5f5"/>
+      <rect x="360" y="444" width="240" height="48" rx="6" fill="rgba(45,49,66,0.04)" stroke="#7a8399" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="480" y="464" class="node-title" font-size="11" text-anchor="middle">8 Abstract Port Protocols</text>
+      <text x="480" y="479" class="node-sub" text-anchor="middle">IVectorStore · INLIVerifier · ITimelineRepo</text>
+
+      <!-- Node H: DeBERTa-v3 NLI Verifier -->
+      <rect x="680" y="136" width="216" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="680" y="136" width="216" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="688" y="142" width="56" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+      <text x="716" y="151" class="node-tag" fill="#4f5d75" text-anchor="middle">INFERENCE</text>
+      <text x="788" y="167" class="node-title" text-anchor="middle">DeBERTa-v3 Verifier</text>
+      <text x="788" y="183" class="node-sub" text-anchor="middle">P(Contradiction) &ge; 0.60 Gate</text>
+
+      <!-- Node I: LanceDB + Tantivy Storage -->
+      <rect x="680" y="240" width="216" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="680" y="240" width="216" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="688" y="246" width="48" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+      <text x="712" y="255" class="node-tag" fill="#4f5d75" text-anchor="middle">STORAGE</text>
+      <text x="788" y="271" class="node-title" text-anchor="middle">LanceDB Arrow Storage</text>
+      <text x="788" y="287" class="node-sub" text-anchor="middle">Zero-Copy + Tantivy BM25 RRF</text>
+
+      <!-- Node J: FHIR & PDF Ingestion -->
+      <rect x="680" y="344" width="216" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="680" y="344" width="216" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="688" y="350" width="52" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+      <text x="714" y="359" class="node-tag" fill="#4f5d75" text-anchor="middle">INGESTION</text>
+      <text x="788" y="375" class="node-title" text-anchor="middle">FHIR R4 &amp; PDF Parser</text>
+      <text x="788" y="391" class="node-sub" text-anchor="middle">LOINC Mapping · Tabular Layout</text>
+
+      <!-- Node K: Async Worker Daemon -->
+      <rect x="680" y="440" width="216" height="52" rx="6" fill="#f5f5f5"/>
+      <rect x="680" y="440" width="216" height="52" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="788" y="462" class="node-title" font-size="11" text-anchor="middle">Async Worker Daemon</text>
+      <text x="788" y="478" class="node-sub" text-anchor="middle">Distributed Locks · Redis / Memory</text>
+
+      <!-- 5. Legend Strip at Bottom -->
+      <line x1="40" y1="544" x2="920" y2="544" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+      <text x="40" y="568" class="legend-text" font-weight="600" letter-spacing="0.14em">LEGEND</text>
+      
+      <!-- Legend Item 1: Focal Core -->
+      <rect x="120" y="560" width="12" height="12" rx="2" fill="rgba(235,108,54,0.15)" stroke="#eb6c36" stroke-width="1.2"/>
+      <text x="140" y="569" class="legend-text">Focal Domain / Safety Core</text>
+
+      <!-- Legend Item 2: Concrete Component -->
+      <rect x="330" y="560" width="12" height="12" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="350" y="569" class="legend-text">Concrete Interface / Adapter</text>
+
+      <!-- Legend Item 3: Abstract Port Protocol -->
+      <rect x="550" y="560" width="12" height="12" rx="2" fill="rgba(45,49,66,0.04)" stroke="#7a8399" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="570" y="569" class="legend-text">Typing Protocol Boundary</text>
+
+      <!-- Legend Item 4: Verified Sync Path -->
+      <line x1="750" y1="566" x2="774" y2="566" stroke="#eb6c36" stroke-width="1.5" marker-end="url(#arrow-accent)"/>
+      <text x="782" y="569" class="legend-text">Clinical Verification Path</text>
+    </svg>
+  </div>
+</body>
+</html>

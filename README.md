@@ -27,6 +27,41 @@ MedRAG v2.0 re-engineers clinical intelligence from the ground up around **Deter
 
 ---
 
+## 📐 Architectural Diagrams & System Visuals
+
+### 1. Hexagonal Architecture & Boundary Invariants
+MedRAG v2.0 isolates the pure clinical domain models (`src/medrag/domain`) with zero external dependencies, bounded by 8 typed port protocols (`src/medrag/ports`) and enforced by AST linters. Ingress controllers communicate strictly through application services to outbound storage and model adapters.
+
+<p align="center">
+  <img src="docs/diagrams/hexagonal-architecture.svg" alt="MedRAG v2.0 Hexagonal Architecture" width="100%"/>
+</p>
+
+> **Interactive Vector View:** [`docs/diagrams/hexagonal-architecture.html`](docs/diagrams/hexagonal-architecture.html) (or in [`readme/diagrams/`](readme/diagrams/hexagonal-architecture.html))
+
+---
+
+### 2. Deterministic NLI Claim Verification & Redaction Pipeline
+Every generated clinical sentence undergoes atomic tokenization and DeBERTa-v3 cross-encoder entailment scoring against retrieved evidence chunks. Any clinical assertion where `P(Contradiction) >= 0.60` is automatically redacted with safety tombstones before reaching the clinician, backed by an optional Four-Eyes CMO override audit trail.
+
+<p align="center">
+  <img src="docs/diagrams/nli-verification-pipeline.svg" alt="Deterministic NLI Verification Pipeline" width="100%"/>
+</p>
+
+> **Interactive Vector View:** [`docs/diagrams/nli-verification-pipeline.html`](docs/diagrams/nli-verification-pipeline.html) (or in [`readme/diagrams/`](readme/diagrams/nli-verification-pipeline.html))
+
+---
+
+### 3. Dual-Track Clinical Ingestion & Hybrid Retrieval Engine
+Longitudinal patient records are ingested across two parallel tracks: structured HL7 FHIR R4 JSON bundles (atomic encounter timeline merging) and layout-aware PDF lab reports (bounding-box table extraction with LOINC mapping). Retrieval combines dense LanceDB Arrow columnar memory with sparse Tantivy BM25 indexing via Reciprocal Rank Fusion (RRF, k=60).
+
+<p align="center">
+  <img src="docs/diagrams/ingestion-and-retrieval.svg" alt="Dual-Track Ingestion and Hybrid Retrieval" width="100%"/>
+</p>
+
+> **Interactive Vector View:** [`docs/diagrams/ingestion-and-retrieval.html`](docs/diagrams/ingestion-and-retrieval.html) (or in [`readme/diagrams/`](readme/diagrams/ingestion-and-retrieval.html))
+
+---
+
 ## 🏛️ Architectural Invariants
 
 1. **Hexagonal Domain Isolation**: Pure clinical domain entities in `src/medrag/domain/` import zero external libraries, frameworks, or drivers. All capabilities are accessed via typed protocols in `src/medrag/ports/` (machine-enforced by AST import linter).
