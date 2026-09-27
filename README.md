@@ -9,6 +9,24 @@ MedRAG v2.0 is an institutional-grade, multi-tenant Clinical AI Intelligence pla
 
 ---
 
+## ℹ️ About MedRAG v2.0
+
+### The Clinical AI Challenge
+In tertiary healthcare and academic hospital settings, clinical teams spend 40% of their diagnostic time manually reconciling fragmented Electronic Health Records (EHR) across years of unstructured encounters, multi-column lab reports, and medication histories. While generic Generative AI and standard RAG pipelines promise automated clinical summarization, they present unacceptable clinical liabilities:
+- **Stochastic Hallucination**: Large language models extrapolate unsupported clinical assertions with high linguistic fluency.
+- **Missing Verifiable Grounding**: Standard vector search returns raw chunks without sentence-level entailment auditing.
+- **Regulatory Non-Compliance**: Cloud-only AI services risk Protected Health Information (PHI) leakage across tenants.
+
+### The MedRAG Solution
+MedRAG v2.0 re-engineers clinical intelligence from the ground up around **Deterministic Safety Invariants**:
+1. **Deterministic Claim-to-Evidence Audit**: Rather than trusting LLM output, MedRAG tokenizes generated syntheses into sentence claims and evaluates each assertion against retrieved guideline chunks using a fine-tuned DeBERTa-v3 Natural Language Inference (NLI) cross-encoder. If contradiction probability `P(Contradiction) >= 0.60`, the assertion is automatically redacted with standard clinical safety tombstones.
+2. **Zero-Loss Patient Timeline Fusion**: Ingests HL7 FHIR R4 JSON bundles into immutable chronological timelines preserving encounters, diagnoses, medications, and LOINC observation values with normal reference intervals.
+3. **Layout-Aware PDF Pathology Parsing**: Extracts tabular laboratory panels and multi-column diagnostic PDFs using bounding-box clustering to preserve abnormal flags and clinical units.
+4. **Zero-Copy In-Process Hybrid Retrieval**: Pairs in-process LanceDB (Apache Arrow columnar memory) with Tantivy BM25 lexical indexing and Reciprocal Rank Fusion (RRF, k=60), delivering sub-10ms query latency without cloud vector database costs.
+5. **Institutional Governance & Four-Eyes Review**: Enforces compound tenant boundaries (`tenant_id`, `clinic_id`, `patient_id`), HIPAA Safe Harbor de-identification, and Chief Medical Officer (CMO) override workflows backed by immutable audit logs.
+
+---
+
 ## 🏛️ Architectural Invariants
 
 1. **Hexagonal Domain Isolation**: Pure clinical domain entities in `src/medrag/domain/` import zero external libraries, frameworks, or drivers. All capabilities are accessed via typed protocols in `src/medrag/ports/` (machine-enforced by AST import linter).

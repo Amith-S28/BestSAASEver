@@ -23,6 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnConfirmOverride = document.getElementById('btn-confirm-override');
   const btnTriggerCmo = document.getElementById('btn-trigger-cmo-modal');
 
+  const aboutModal = document.getElementById('about-modal');
+  const btnOpenAbout = document.getElementById('btn-about-open');
+  const btnCloseAboutModal = document.getElementById('btn-close-about-modal');
+
   const ingestModal = document.getElementById('ingest-modal');
   const btnOpenIngest = document.getElementById('btn-ingest-open');
   const btnCloseIngestModal = document.getElementById('btn-close-ingest-modal');
@@ -336,4 +340,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 1500);
     }
   });
+
+  // About Modal
+  if (btnOpenAbout) btnOpenAbout.addEventListener('click', () => aboutModal.showModal());
+  if (btnCloseAboutModal) btnCloseAboutModal.addEventListener('click', () => aboutModal.close());
 });
