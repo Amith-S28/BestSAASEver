@@ -160,7 +160,7 @@
   <rect x="688" y="142" width="56" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
   <text x="716" y="151" class="node-tag" fill="#4f5d75" text-anchor="middle">INFERENCE</text>
   <text x="788" y="167" class="node-title" text-anchor="middle">DeBERTa-v3 Verifier</text>
-  <text x="788" y="183" class="node-sub" text-anchor="middle">P(Contradiction) &ge; 0.60 Gate</text>
+  <text x="788" y="183" class="node-sub" text-anchor="middle">P(Contradiction) &#x2265; 0.60 Gate</text>
 
   <!-- Node I: LanceDB + Tantivy Storage -->
   <rect x="680" y="240" width="216" height="64" rx="6" fill="#f5f5f5"/>
