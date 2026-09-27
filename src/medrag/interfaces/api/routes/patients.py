@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from pydantic import BaseModel, Field
 from medrag.domain.exceptions import ClinicalException, IngestionCorruptedException, PatientNotFoundException
+from medrag.domain.patient import PatientId
 from medrag.interfaces.api.dependencies import (
     assert_tenant_boundary,
     get_services,
@@ -119,14 +120,19 @@ async def list_patients(
 ):
     """List patient summaries for current tenant with cursor-based pagination."""
     services = get_services()
-    timelines = await services.timeline_repo.list_timelines(user.tenant_id, limit=limit)
+    clinic_id = user.clinic_id or "default"
+    timelines = await services.timeline_repo.list_patients(
+        tenant_id=user.tenant_id, clinic_id=clinic_id, limit=limit, cursor=cursor
+    )
     items = [
         {
-            "patient_id": t.patient_id,
-            "tenant_id": t.tenant_id,
+            "patient_id": t.patient_id.value if hasattr(t.patient_id, "value") else str(t.patient_id),
+            "tenant_id": t.tenant_id.value if hasattr(t.tenant_id, "value") else str(t.tenant_id),
+            "clinic_id": t.clinic_id.value if hasattr(t.clinic_id, "value") else str(t.clinic_id),
+            "demographics": t.demographics,
             "encounter_count": len(t.encounters),
-            "created_at": t.created_at,
-            "updated_at": t.updated_at,
+            "created_at": t.created_at.isoformat() if hasattr(t.created_at, "isoformat") else str(t.created_at),
+            "updated_at": t.updated_at.isoformat() if hasattr(t.updated_at, "isoformat") else str(t.updated_at),
         }
         for t in timelines
     ]
@@ -145,51 +151,65 @@ async def get_patient_timeline(
 ):
     """Retrieve structured longitudinal patient timeline."""
     services = get_services()
-    timeline = await services.timeline_repo.get_timeline(user.tenant_id, patient_id)
+    timeline = await services.timeline_repo.get_timeline(user.tenant_id, PatientId(patient_id))
     if not timeline:
         raise PatientNotFoundException(patient_id)
 
-    assert_tenant_boundary(user, timeline.tenant_id)
+    tenant_val = timeline.tenant_id.value if hasattr(timeline.tenant_id, "value") else str(timeline.tenant_id)
+    assert_tenant_boundary(user, tenant_val)
 
     return {
-        "patient_id": timeline.patient_id,
-        "tenant_id": timeline.tenant_id,
-        "clinic_id": timeline.clinic_id,
+        "patient_id": timeline.patient_id.value if hasattr(timeline.patient_id, "value") else str(timeline.patient_id),
+        "tenant_id": tenant_val,
+        "clinic_id": timeline.clinic_id.value if hasattr(timeline.clinic_id, "value") else str(timeline.clinic_id),
+        "demographics": timeline.demographics,
         "encounters": [
             {
                 "encounter_id": e.encounter_id,
                 "encounter_type": e.encounter_type,
-                "period_start": e.period_start,
-                "period_end": e.period_end,
-                "diagnoses": e.diagnoses,
+                "start_time": e.start_time.isoformat() if hasattr(e.start_time, "isoformat") else str(e.start_time),
+                "end_time": e.end_time.isoformat() if e.end_time and hasattr(e.end_time, "isoformat") else None,
+                "chief_complaint": e.chief_complaint,
+                "conditions": [
+                    {
+                        "code_icd10": getattr(c, "code_icd10", ""),
+                        "code_snomed": getattr(c, "code_snomed", ""),
+                        "display_name": getattr(c, "display_name", ""),
+                        "clinical_status": getattr(c, "clinical_status", ""),
+                    }
+                    for c in e.conditions
+                ],
                 "observations": [
                     {
-                        "observation_id": o.observation_id,
-                        "code": o.code,
-                        "display_name": o.display_name,
-                        "value": o.value,
-                        "unit": o.unit,
-                        "reference_range_low": o.reference_range_low,
-                        "reference_range_high": o.reference_range_high,
-                        "is_abnormal": o.is_abnormal,
+                        "code_snomed": getattr(o, "code_snomed", ""),
+                        "code_loinc": getattr(o, "code_loinc", ""),
+                        "display_name": getattr(o, "display_name", ""),
+                        "numeric_value": getattr(o, "numeric_value", 0.0),
+                        "unit": getattr(o, "unit", ""),
+                        "reference_range_low": getattr(o, "reference_range_low", 0.0),
+                        "reference_range_high": getattr(o, "reference_range_high", 0.0),
+                        "flag": o.flag.value if hasattr(o.flag, "value") else str(o.flag),
+                        "is_abnormal": o.is_abnormal() if hasattr(o, "is_abnormal") else False,
+                        "is_critical": o.is_critical() if hasattr(o, "is_critical") else False,
                     }
                     for o in e.observations
                 ],
                 "medications": [
                     {
-                        "medication_id": m.medication_id,
-                        "name": m.name,
-                        "rxnorm_code": m.rxnorm_code,
-                        "dosage": m.dosage,
-                        "status": m.status,
+                        "name": getattr(m, "name", ""),
+                        "rxnorm_code": getattr(m, "rxnorm_code", ""),
+                        "dosage": getattr(m, "dosage", ""),
+                        "route": getattr(m, "route", ""),
+                        "frequency": getattr(m, "frequency", ""),
+                        "status": m.status.value if hasattr(m.status, "value") else str(m.status),
                     }
                     for m in e.medications
                 ],
             }
             for e in timeline.encounters
         ],
-        "created_at": timeline.created_at,
-        "updated_at": timeline.updated_at,
+        "created_at": timeline.created_at.isoformat() if hasattr(timeline.created_at, "isoformat") else str(timeline.created_at),
+        "updated_at": timeline.updated_at.isoformat() if hasattr(timeline.updated_at, "isoformat") else str(timeline.updated_at),
     }
 
 

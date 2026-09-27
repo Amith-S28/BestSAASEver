@@ -43,7 +43,7 @@
     <div class="nav-center" id="subsystem-telemetry">
       <div class="telemetry-chip">
         <span class="status-dot online"></span>
-        <span class="telemetry-label">Ports Operational:</span>
+        <span class="telemetry-label">Subsystems:</span>
         <span class="telemetry-subsystem">LanceDB Arrow · DeBERTa NLI (τ=0.60) · Async Daemon</span>
       </div>
       <div class="telemetry-quota">
@@ -92,9 +92,7 @@
         </div>
         <div class="patient-picker">
           <select id="patient-selector" class="patient-dropdown" aria-label="Select active patient chart">
-            <option value="pat-cardio-001">Johnathan Vance (MRN-90214)</option>
-            <option value="pat-neph-002">Elena Rostova (MRN-84192)</option>
-            <option value="pat-pulm-003">Marcus Holloway (MRN-71822)</option>
+            <option value="" disabled selected>Loading patient records...</option>
           </select>
         </div>
       </div>
@@ -103,10 +101,10 @@
       <section class="patient-identity-card" id="patient-demographics-card">
         <div class="patient-id-header">
           <div>
-            <h3 class="patient-name" id="pt-name">Johnathan Vance</h3>
-            <p class="patient-meta" id="pt-meta">58 y/o Male · DOB: 1968-04-12 · Primary Clinic: Main Campus</p>
+            <h3 class="patient-name" id="pt-name">No Patient Selected</h3>
+            <p class="patient-meta" id="pt-meta">Select a patient chart above or ingest records to load longitudinal timeline.</p>
           </div>
-          <span class="risk-badge critical" id="pt-risk-badge">High Renal Risk</span>
+          <span class="risk-badge" id="pt-risk-badge" style="display:none;"></span>
         </div>
       </section>
 
@@ -118,37 +116,8 @@
         </div>
         
         <div class="labs-table" id="abnormal-labs-container">
-          <div class="lab-row abnormal">
-            <div class="lab-meta-col">
-              <span class="lab-name">Potassium [K+]</span>
-              <span class="lab-ref">Ref: 3.5 – 5.0 mEq/L</span>
-            </div>
-            <div class="lab-val-col">
-              <span class="lab-value">6.2 mEq/L</span>
-              <span class="lab-status-tag tag-critical">CRITICAL HIGH</span>
-            </div>
-          </div>
-
-          <div class="lab-row abnormal">
-            <div class="lab-meta-col">
-              <span class="lab-name">Serum Creatinine</span>
-              <span class="lab-ref">Ref: 0.7 – 1.3 mg/dL</span>
-            </div>
-            <div class="lab-val-col">
-              <span class="lab-value">3.4 mg/dL</span>
-              <span class="lab-status-tag tag-critical">ACUTE ELEVATION</span>
-            </div>
-          </div>
-
-          <div class="lab-row abnormal">
-            <div class="lab-meta-col">
-              <span class="lab-name">eGFR (CKD-EPI)</span>
-              <span class="lab-ref">Ref: ≥ 90 mL/min</span>
-            </div>
-            <div class="lab-val-col">
-              <span class="lab-value">22 mL/min</span>
-              <span class="lab-status-tag tag-warning">STAGE 4 CKD</span>
-            </div>
+          <div class="empty-section-notice" id="labs-empty-notice">
+            <span>No active critical laboratory alerts for current patient context.</span>
           </div>
         </div>
       </section>
@@ -161,41 +130,9 @@
         </div>
         
         <div class="encounters-timeline" id="timeline-encounters-list">
-          <!-- Encounter 1 -->
-          <article class="encounter-node active">
-            <div class="node-rail">
-              <div class="node-pip"></div>
-              <div class="node-line"></div>
-            </div>
-            <div class="node-card">
-              <div class="node-top">
-                <span class="encounter-title">Inpatient Critical Care</span>
-                <time class="encounter-date">2026-09-24</time>
-              </div>
-              <p class="encounter-desc">Acute decompensated heart failure with sudden worsening oliguria and lethargy.</p>
-              <div class="encounter-chips">
-                <span class="chip chip-neutral">ICU Admission</span>
-                <span class="chip chip-danger">AKI Stage 3</span>
-              </div>
-            </div>
-          </article>
-
-          <!-- Encounter 2 -->
-          <article class="encounter-node">
-            <div class="node-rail">
-              <div class="node-pip"></div>
-            </div>
-            <div class="node-card">
-              <div class="node-top">
-                <span class="encounter-title">Cardiology Outpatient</span>
-                <time class="encounter-date">2026-07-15</time>
-              </div>
-              <p class="encounter-desc">Hypertension follow-up; Lisinopril increased to 40mg daily.</p>
-              <div class="encounter-chips">
-                <span class="chip chip-neutral">Medication Adjustment</span>
-              </div>
-            </div>
-          </article>
+          <div class="empty-section-notice" id="encounters-empty-notice">
+            <span>No longitudinal encounters loaded.</span>
+          </div>
         </div>
       </section>
 
@@ -207,20 +144,8 @@
         </div>
         
         <div class="meds-list" id="medications-list">
-          <div class="med-row target">
-            <div class="med-main">
-              <strong class="med-name">Lisinopril 40 mg Tablet</strong>
-              <span class="med-meta">RxNorm: 29046 · Daily Oral</span>
-            </div>
-            <span class="chip chip-accent">Target of Inquiry</span>
-          </div>
-
-          <div class="med-row">
-            <div class="med-main">
-              <strong class="med-name">Furosemide 40 mg Tablet</strong>
-              <span class="med-meta">RxNorm: 310429 · BID Oral</span>
-            </div>
-            <span class="chip chip-neutral">Active</span>
+          <div class="empty-section-notice" id="meds-empty-notice">
+            <span>No active prescriptions on record.</span>
           </div>
         </div>
       </section>
@@ -239,25 +164,10 @@
         </div>
       </div>
 
-      <!-- Presets & Query Composer Bar -->
+      <!-- Query Composer Bar -->
       <div class="composer-card" id="query-composer">
-        <div class="presets-header">
-          <span class="presets-title">Institutional Scenario Presets:</span>
-          <div class="presets-row">
-            <button class="preset-btn" id="preset-1" data-query="Assess Lisinopril safety in this patient presenting with hyperkalemia and acute kidney injury">
-              <span>Lisinopril in AKI / Hyperkalemia</span>
-            </button>
-            <button class="preset-btn" id="preset-2" data-query="Summarize renal trajectory and eGFR deterioration over longitudinal hospitalizations">
-              <span>Renal Function Trajectory</span>
-            </button>
-            <button class="preset-btn" id="preset-3" data-query="What is the evidence-based antiplatelet protocol for acute coronary syndrome?">
-              <span>ACS Antiplatelet Protocol</span>
-            </button>
-          </div>
-        </div>
-
         <div class="composer-input-row">
-          <textarea id="clinical-query-input" rows="2" placeholder="Inquire patient clinical trajectory or evidence-based medication safety..." aria-label="Clinical inquiry prompt"></textarea>
+          <textarea id="clinical-query-input" rows="3" placeholder="Enter clinical inquiry, guideline verification, or medication safety assessment..." aria-label="Clinical inquiry prompt"></textarea>
           <div class="composer-actions">
             <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>↵</kbd></span>
             <button class="btn-execute" id="btn-run-query">
@@ -273,12 +183,12 @@
       <!-- Synthesis Output Container -->
       <div class="synthesis-output-card" id="synthesis-output-container">
         
-        <!-- Live Synthesis Metrics HUD -->
+        <!-- Live Synthesis Metrics HUD (Clean default dashes prior to inquiry) -->
         <div class="metrics-strip" id="synthesis-metrics-bar">
           <div class="metric-cell">
             <span class="metric-title">NLI Faithfulness</span>
             <div class="metric-val-wrap">
-              <strong class="metric-value status-success" id="metric-faithfulness">94.8%</strong>
+              <strong class="metric-value" id="metric-faithfulness">—</strong>
               <span class="metric-desc">Cross-Encoder Entailed</span>
             </div>
           </div>
@@ -288,7 +198,7 @@
           <div class="metric-cell">
             <span class="metric-title">Grounded Citations</span>
             <div class="metric-val-wrap">
-              <strong class="metric-value status-accent" id="metric-citations">4 Citations</strong>
+              <strong class="metric-value" id="metric-citations">—</strong>
               <span class="metric-desc">Indexed Literature</span>
             </div>
           </div>
@@ -298,7 +208,7 @@
           <div class="metric-cell">
             <span class="metric-title">Safety Redactions</span>
             <div class="metric-val-wrap">
-              <strong class="metric-value status-danger" id="metric-redactions">1 Filtered</strong>
+              <strong class="metric-value" id="metric-redactions">—</strong>
               <span class="metric-desc">P(Contra) ≥ 0.60 Gate</span>
             </div>
           </div>
@@ -308,7 +218,7 @@
           <div class="metric-cell">
             <span class="metric-title">Inference Latency</span>
             <div class="metric-val-wrap">
-              <strong class="metric-value" id="metric-latency">840 ms</strong>
+              <strong class="metric-value" id="metric-latency">—</strong>
               <span class="metric-desc">Arrow + Tantivy RRF</span>
             </div>
           </div>
@@ -323,7 +233,7 @@
               </svg>
             </div>
             <h3 class="standby-title">Clinical Decision Support Standby</h3>
-            <p class="standby-desc">Select an institutional preset scenario above or formulate an ad-hoc clinical inquiry. Every generated assertion is tokenized and verified against indexed evidence in sub-10ms intervals before rendering.</p>
+            <p class="standby-desc">Formulate a clinical inquiry above. Generated sentences are parsed into atomic assertions and verified against indexed evidence in sub-10ms intervals before rendering.</p>
           </div>
           
           <div class="stream-text clinical-note" id="stream-text" style="display:none;"></div>
@@ -338,53 +248,15 @@
           <span class="pane-eyebrow">GROUND TRUTH</span>
           <h2 class="pane-heading">Evidence Ledger</h2>
         </div>
-        <span class="evidence-count-tag" id="evidence-count">3 Evidence Passages</span>
+        <span class="evidence-count-tag" id="evidence-count">0 Grounded Passages</span>
       </div>
 
       <!-- Evidence Cards Container -->
       <div class="evidence-stream" id="evidence-cards-container">
-        
-        <!-- Verified Evidence Card 1 -->
-        <article class="evidence-card verified" id="evidence-card-1">
-          <div class="card-head">
-            <span class="citation-num">[^1]</span>
-            <div class="card-source-info">
-              <h4 class="card-title">KDIGO Clinical Practice Guideline for AKI</h4>
-              <span class="card-locator">Section 3.2: Drug-Induced AKI · Page 45</span>
-            </div>
-            <span class="evidence-status-chip verified">Verified (0.94)</span>
-          </div>
-
-          <blockquote class="card-quote">
-            "Discontinue ACE inhibitors and ARBs promptly in setting of severe hyperkalemia or acute renal deterioration."
-          </blockquote>
-
-          <div class="card-foot">
-            <span class="tag-meta">Specialty: Nephrology</span>
-            <span class="tag-meta">Tier 1: Clinical Guideline</span>
-          </div>
-        </article>
-
-        <!-- Contradiction Warning Evidence Card 2 -->
-        <article class="evidence-card contradicted" id="evidence-card-2">
-          <div class="card-head">
-            <span class="citation-num danger">[^2]</span>
-            <div class="card-source-info">
-              <h4 class="card-title">Harrison's Principles of Internal Medicine</h4>
-              <span class="card-locator">Chapter 308: Azotemia &amp; Acute Renal Failure · Page 2112</span>
-            </div>
-            <span class="evidence-status-chip contradicted">Contradicted (0.92)</span>
-          </div>
-
-          <blockquote class="card-quote">
-            "Continuation of RAAS blockade during acute hemodynamic renal failure elevates risk of unrecoverable nephron loss and hyperkalemic arrhythmia."
-          </blockquote>
-
-          <div class="card-foot">
-            <span class="tag-meta danger">Safety Tombstone Triggered</span>
-            <button class="btn-text-danger" id="btn-trigger-cmo-modal">CMO Override Review →</button>
-          </div>
-        </article>
+        <div class="empty-evidence-notice" id="evidence-empty-notice">
+          <p>No Grounded Evidence Retrieved</p>
+          <span>Retrieved literature passages and entailment verification matrices will populate here upon synthesis execution.</span>
+        </div>
       </div>
     </aside>
   </main>
@@ -415,7 +287,7 @@
         <div class="field-block">
           <label class="field-label" for="override-claim-text">Intercepted Recommendation</label>
           <div class="intercepted-text" id="override-claim-text">
-            "Continue Lisinopril therapy at high doses despite acute decompensation."
+            No active intercepted claim.
           </div>
         </div>
 
@@ -468,7 +340,10 @@
           </div>
           <p class="dropzone-text">Drop FHIR R4 Bundle (<span class="code-fn">.json</span>) or Laboratory Pathology Report (<span class="code-fn">.pdf</span>)</p>
           <span class="dropzone-hint">De-identified via HIPAA Safe Harbor upon ingress</span>
-          <button class="btn-dialog secondary" id="btn-browse-file">Browse File</button>
+          <div style="display:flex; gap:10px; margin-top:6px;">
+            <button class="btn-dialog secondary" id="btn-browse-file">Browse File</button>
+            <button class="btn-dialog primary" id="btn-seed-sample">Load Clinical Benchmark Patient</button>
+          </div>
           <input type="file" id="file-input" style="display: none;" accept=".json,.pdf">
         </div>
 

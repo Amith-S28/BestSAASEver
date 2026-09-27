@@ -1440,3 +1440,51 @@ body.medrag-workstation {
 .specs-footer-meta strong {
   color: var(--text-primary);
 }
+
+/* Empty notices and state indicators */
+.empty-section-notice {
+  padding: 16px 14px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background-color: var(--bg-surface);
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+
+.empty-evidence-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 18px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-md);
+  gap: 6px;
+}
+
+.empty-evidence-notice p {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-evidence-notice span {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.btn-dialog.primary {
+  background-color: var(--accent-blue);
+  border: 1px solid var(--accent-blue);
+  color: #ffffff;
+}
+
+.btn-dialog.primary:hover {
+  background-color: var(--accent-blue-hover);
+}
+
