@@ -95,10 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render labs
     const container = document.getElementById('abnormal-labs-container');
     container.innerHTML = p.labs.map(l => `
-      <div class="lab-pill ${l.abnormal ? 'abnormal' : ''}">
-        <span class="lab-name">${l.name}</span>
-        <span class="lab-value">${l.value}</span>
-        <span class="lab-flag">${l.flag}</span>
+      <div class="lab-row ${l.abnormal ? 'abnormal' : ''}">
+        <div class="lab-meta-col">
+          <span class="lab-name">${l.name}</span>
+          <span class="lab-ref">LOINC Observation</span>
+        </div>
+        <div class="lab-val-col">
+          <span class="lab-value">${l.value}</span>
+          <span class="lab-status-tag ${l.abnormal ? 'tag-critical' : 'tag-warning'}">${l.flag}</span>
+        </div>
       </div>
     `).join('');
   });
@@ -195,11 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="safety-tombstone" id="tombstone-claim">
           <div class="safety-tombstone-header">
             <span>Safety Filter: Clinical Recommendation Redacted</span>
-            <span class="badge badge-danger">Contradiction Score: ${data.score}</span>
+            <span class="chip chip-danger">Contradiction Score: ${data.score}</span>
           </div>
           <p>The generative model proposed continuing Lisinopril therapy at high dosage, which directly contradicts KDIGO AKI Practice Guidelines in the presence of acute hyperkalemia (K+ 6.2 mEq/L).</p>
           <div style="margin-top: 8px;">
-            <button class="btn-link" onclick="openCMOModal()">Authorize CMO Override</button>
+            <button class="btn-link" onclick="openCMOModal()">Authorize CMO Override →</button>
           </div>
         </div>
       `;
@@ -237,11 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="safety-tombstone" id="tombstone-claim">
             <div class="safety-tombstone-header">
               <span>Safety Filter: Clinical Recommendation Redacted</span>
-              <span class="badge badge-danger">Contradiction Score: 0.92</span>
+              <span class="chip chip-danger">Contradiction Score: 0.92</span>
             </div>
             <p>The model's suggestion to maintain high-dose Lisinopril was automatically redacted because it directly contradicts nephrology literature during acute decompensation.</p>
             <div style="margin-top: 8px;">
-              <button class="btn-link" id="btn-tombstone-override" onclick="openCMOModal()">Authorize CMO Override</button>
+              <button class="btn-link" id="btn-tombstone-override" onclick="openCMOModal()">Authorize CMO Override →</button>
             </div>
           </div>
         `;
@@ -300,15 +305,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const tombstone = document.getElementById('tombstone-claim');
     if (tombstone) {
       tombstone.outerHTML = `
-        <div class="glass-panel" style="padding: 12px; border-left: 4px solid var(--status-emerald); margin: 14px 0;">
-          <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
-            <strong style="color: var(--status-emerald);">CMO Override Authorized (Dr. Chen)</strong>
-            <span class="badge badge-license">Four-Eyes Verification Complete</span>
+        <div style="background-color: var(--status-success-bg); border: 1px solid var(--status-success-border); border-left: 3px solid var(--status-success); border-radius: var(--radius-sm); padding: 12px 14px; margin: 14px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+            <strong style="color: var(--status-success); font-size: 12px;">CMO Override Authorized (Dr. Chen)</strong>
+            <span class="chip" style="background-color: rgba(16, 185, 129, 0.15); color: var(--status-success); border: 1px solid var(--status-success-border);">Four-Eyes Verification Complete</span>
           </div>
-          <p style="font-size: 0.88rem; color: var(--text-primary);">
+          <p style="font-size: 13px; color: var(--text-primary); line-height: 1.55;">
             "Lisinopril 40mg therapy temporarily paused for 48 hours with nephrology consult requested, pending re-evaluation of potassium levels [^1]."
           </p>
-          <span style="font-size: 0.72rem; color: var(--text-muted);">Justification: ${reason} · Logged to HIPAA Audit Ledger</span>
+          <span style="font-size: 10.5px; font-family: var(--font-mono); color: var(--text-muted); display: block; margin-top: 6px;">Justification: ${reason} · Committed to Immutable Audit Ledger</span>
         </div>
       `;
     }
